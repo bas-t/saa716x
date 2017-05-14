@@ -623,7 +623,7 @@ Going to download the kernel source.
   sleep 3
   if [ "x$next_opt" = "xno" ]; then
     if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
-      wget https://git.kernel.org/torvalds/t/linux-$vanilla_opt.tar.gz || die "Error(s) while fetching Linux source"
+      wget https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-$vanilla_opt.tar.gz || die "Error(s) while fetching Linux source"
     else
       wget https://www.kernel.org/pub/linux/kernel/v$MAJOR.x/linux-$vanilla_opt.tar.xz || die "Error(s) while fetching Linux source"
     fi
