@@ -1,0 +1,7 @@
+config VIDEO_SAA716X
+	tristate "SAA7160/1/2 based Budget PCIe cards (DVB only)"
+	depends on DVB_CORE && PCI && I2C
+	select I2C_MUX
+	select DVB_SI2168 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
+	default m
