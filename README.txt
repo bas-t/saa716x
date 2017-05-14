@@ -1,4 +1,4 @@
-uild a kernel with saa716x driver in-tree.
+Build a kernel with saa716x driver in-tree.
 
 Supported hardware: TBS 6182/6185
 
