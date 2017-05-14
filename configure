@@ -1,0 +1,1327 @@
+#!/bin/bash
+
+env_clean(){
+for i in DIR MAJOR MINOR OS RELEASE FIRST_DIGIT SECOND_DIGIT EXTRA_DIGIT CONCURRENCY_LEVEL FFDECSA_EXTRA FFFAIL CX23885 VERSION GCCCHANGE CONFIG
+do
+if ! [ -z ${i+x} ]; then
+  unset $i
+fi
+done
+}
+
+die(){
+    echo -en "
+\E[1;33;44m$1, aborting...\E[0m
+
+"
+    env_clean
+    exit 1
+}
+
+die_unknown(){
+    echo -en "
+\E[1;33;44mUnknown option \"$1\".
+
+run ./configure --help for valid options\E[0m
+
+"
+    env_clean
+    exit 1
+}
+
+_patch(){
+if ! [ "$?" -eq 0 ]; then
+  echo "
+Could not apply the patch.
+Aborting...
+"
+  env_clean
+  exit 1
+fi
+}
+
+confirmno(){
+    # call with a prompt string or use a default
+    read -r -p "${1:-Are you sure? [y/N]} " response
+    case $response in
+        [yY][eE][sS]|[yY]) 
+            true
+            ;;
+        *)
+            false
+            ;;
+    esac
+}
+
+confirmyes(){
+    # call with a prompt string or use a default
+    read -r -p "${1:-Continue? [Y/n]} " response
+    case $response in
+        [yY][eE][sS]|[yY]) 
+            true
+            ;;
+        [nN][oO]|[nN])
+            false
+            ;;
+        *)
+            true
+            ;;
+    esac
+}
+
+kernelconfig(){
+echo -en "
+Choise: use supplied config file or
+do 'make oldconfig'. Do you want to
+use supplied kernel config?
+
+If you hit 'n', 'make oldconfig' starts.
+
+"
+    # call with a prompt string or use a default
+    read -r -p "${1:-Yes, use it. [Y/n]} " response
+    case $response in
+        [yY][eE][sS]|[yY]) 
+            cp -f ../kernelconfig/amd64/$MAJOR.$MINOR/config ./.config
+            ;;
+        [nN][oO]|[nN])
+            make oldconfig
+            ;;
+        *)
+            cp -f ../kernelconfig/amd64/$MAJOR.$MINOR/config ./.config
+            ;;
+    esac
+}
+
+ubuntukernelconfig(){
+echo -en "
+Choise: use supplied config file or
+do 'make oldconfig'. Do you want to
+use supplied kernel config?
+
+If you hit 'n', 'make oldconfig' starts.
+
+"
+    # call with a prompt string or use a default
+    read -r -p "${1:-Yes, use it. [Y/n]} " response
+    case $response in
+        [yY][eE][sS]|[yY]) 
+            cp -f ../kernelconfig/amd64/ubuntu/$MAJOR.$MINOR/config ./.config
+            ;;
+        [nN][oO]|[nN])
+            make oldconfig
+            ;;
+        *)
+            cp -f ../kernelconfig/amd64/ubuntu/$MAJOR.$MINOR/config ./.config
+            ;;
+    esac
+}
+
+show_help(){
+  echo " Usage: ./configure --opt1=<opt> --opt2=<opt>"
+  echo "                        "
+  echo " Options: [default], if any, in brackets after option."
+  echo "                        "
+  echo " --help                 Print this message"
+  echo "                        "
+  echo " --stock=<opt>          [yes] When running a Debian/Ubuntu stock kernel,"
+  echo "                        recompile it with dvbloopback driver and dvb-core patch."
+  echo "                        "
+  echo " --vanilla=<bool>       Specify a the vanilla kernel version you"
+  echo "                        want to compile. Like --vanilla=4.1.8"
+  echo "                        This disables the --stock= flag."
+  echo "                        "
+  echo " --headers=<opt>        [no] yes: install kernel headers package(s)."
+  echo "                        "
+  echo " --next=<opt>           [no] 4.1 : compile linux-next."
+  echo "                        This version number should be >= current RC version."
+  echo "                        disables --vanilla and --stock flags, no headers."
+  echo "                        Warning: using the --next flag can corrupt your system"
+  echo "                        "
+  echo " --adapters=<opt>       [16] Set max number of adapters that are allowed,"
+  echo "                        twice the number of your physical adapters is needed."
+  echo "                        "
+  echo " --update=<opt>         [yes] no: don't auto-update or clean this repo."
+  echo "                        "
+  echo "                        "
+  echo " --abi=<opt>            [900] Debian/Ubuntu only kernel version tweak."
+  echo "                        Only set this option if you realy know what you do."
+  echo "                        "
+  echo " --debug=<opt>          [no] yes: pause to review (almost) each and every step."
+  echo "                        "
+  echo " --firmware=<opt>       [yes] no: don't install the included firmware files."
+  echo "                        "
+  echo " --config=<opt>         [big] small: use localmodconfig for tiny vanilla kernels."
+  echo "                        "
+  echo " --gcc=<opt>            [gcc] or set the number."
+  echo "                        "
+  exit 0
+}
+
+stock_opt="yes"
+vanilla_opt=""
+headers_opt="no"
+next_opt="no"
+adapters_opt="16"
+update_opt="yes"
+abi_opt="900"
+debug_opt="no"
+firmware_opt="yes"
+config_opt="big"
+gcc_opt=""
+genpix_opt="no"
+
+for opt do
+  optval="${opt#*=}"
+  case "$opt" in
+  --help) show_help
+  ;;
+  --stock=*) stock_opt="$optval"
+  ;;
+  --vanilla=*) stock_opt="no"; vanilla_opt="$optval"
+  ;;
+  --headers=*) headers_opt="$optval"
+  ;;
+  --next=*) stock_opt="no"; headers_opt="no"; next_opt="$optval"; vanilla_opt="$next_opt"
+  ;;
+  --adapters=*) adapters_opt="$optval"
+  ;;
+  --update=*) update_opt="$optval"
+  ;;
+  --abi=*) abi_opt="$optval"
+  ;;
+  --debug=*) debug_opt="$optval"
+  ;;
+  --firmware=*) firmware_opt="$optval"
+  ;;
+  --config=*) config_opt="$optval"
+  ;;
+  --gcc=*) gcc_opt="$optval"
+  ;;
+  *)
+  die_unknown $opt
+  ;;
+  esac
+done
+
+export abi_opt
+
+DIR=`pwd`
+
+# Check git status
+if [ "x$update_opt" = "xyes" ]; then
+  rm -rf linux* > /dev/null 2>&1
+  rm -rf media* > /dev/null 2>&1
+  rm -rf descrambler > /dev/null 2>&1
+  git clean -xfd > /dev/null
+  git reset --hard HEAD > /dev/null
+  git remote update > /dev/null 2>&1
+  if ! [ "$?" -eq 0 ]; then
+    echo -en "
+\E[1;33;44m
+###################################
+
+Error(s) encountered while updating
+
+the status from remote git repo.
+
+Aborting...
+
+####################################
+\E[0m
+
+"
+    env_clean
+    exit 1
+  fi
+  LOCAL=$(git rev-parse @{0})
+  REMOTE=$(git rev-parse @{u})
+  BASE=$(git merge-base @{0} @{u})
+
+  if [ $LOCAL = $REMOTE ]; then
+    GITSTATUS="0"    # "Up-to-date"
+  elif [ $LOCAL = $BASE ]; then
+    GITSTATUS="1"    # "Need to pull"
+  elif [ $REMOTE = $BASE ]; then
+    GITSTATUS="2"    # "Need to push"
+  else
+    GITSTATUS="3"    # "Diverged"
+  fi
+  if [ "$GITSTATUS" -eq "0" ]; then
+    echo "
+Your local clone is clean and up-to-date
+"
+    if [ "x$debug_opt" = "xno" ]; then
+      sleep 3
+    else
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        env_clean
+        exit 0
+      fi
+    fi
+  elif [ "$GITSTATUS" -eq "1" ]; then
+    echo "
+Going to sync your local clone with updated remote repo.
+
+"
+    sleep 3
+    git pull > /dev/null
+    if ! [ "$?" -eq 0 ]; then
+      echo -en "
+\E[1;33;44m
+###################################
+
+Error(s) encountered while syncing
+
+local with remote git repo
+
+Aborting...
+
+####################################
+\E[0m
+
+"
+      env_clean
+      exit 1
+    else
+      echo -en "
+
+############################################################
+
+Synced with remote repo successfully! Please rerun
+
+./configure to complete installation of dvbloopback drivers.
+
+Arrow up and enter will get you there.
+
+############################################################
+
+
+"
+      env_clean
+      exit 0
+    fi
+  elif [ "$GITSTATUS" -eq 2 -o "$GITSTATUS" -eq 3 ]; then
+    echo -en "
+\E[1;33;44m
+######################################
+
+Your local clone cannot be synced with
+
+remote repo. Please get a fresh clone.
+
+Aborting...
+
+######################################
+\E[0m
+
+"
+    env_clean
+    exit 1
+  fi    
+fi
+
+# Make sure that we are running as root
+if ! echo "$(whoami)" | grep "root" > /dev/null 2>&1; then
+  echo -en "
+\E[1;33;44m
+You should run as root.
+
+Aborting...
+\E[0m
+
+"
+  env_clean
+  exit 0
+fi
+
+# Make sure that a chosen non default gcc version actualy exists
+if [ "x$gcc_opt" != "x" ]; then
+  if ! [ -e /usr/bin/gcc-$gcc_opt ]; then
+    echo -en "
+\E[1;33;44m
+You have chosen to compile your vanilla kernel with
+gcc-$gcc_opt, but it does not exist on your system.
+
+Aborting...
+\E[0m
+
+"
+    env_clean
+    exit 0
+  fi
+fi
+
+# Get info on what distro we are running
+apt-get install lsb-release -y > /dev/null 2>&1
+if [ -f /usr/bin/lsb_release ]; then
+  OS=$( lsb_release -si )
+  RELEASE=$( lsb_release -sc )
+  if ! [ "$OS" = "Debian" -o "$OS" = "Ubuntu" -o "$OS" = "Devuan" ]; then
+    if ! [ -f "/etc/arch-release" ] > /dev/null  2>&1; then
+      drivers_opt="no"
+    fi
+  fi
+else
+  if ! [ -f "/etc/arch-release" ] > /dev/null  2>&1; then
+    drivers_opt="no"
+  fi
+fi
+
+# Check for a supported kernelversion
+if ! [ "x$vanilla_opt" = "x" ]; then
+  MAJOR=$(echo "$vanilla_opt" | cut -d'.' -f1)
+  MINOR=$(echo "$vanilla_opt" | cut -d'.' -f2 | cut -d'-' -f1)
+  export MAJOR
+  export MINOR
+  if [ "$MAJOR" -lt 4 ]; then
+    echo -en "
+You requested a build for a $vanilla_opt kernel.
+
+Minimum supported kernelseries is 4.9.x
+
+Aborting...
+"
+    env_clean
+    exit 0
+  fi
+  elif [ "$MAJOR" -eq 4 -a "$MINOR" -lt 9 ]; then
+    echo -en "
+You requested a build for a $vanilla_opt kernel.
+
+Minimum supported kernelseries is 4.9.x
+
+Aborting...
+"
+    env_clean
+    exit 0
+  fi
+fi
+
+# Check for proper use of --stock= flag
+if ! [ "$OS" = "Debian" -o "$OS" = "Ubuntu" -o "$OS" = "Devuan" ]; then
+  if [ "x$stock_opt" = "xyes" ]; then
+    echo "
+
+Compiling a distro's stock kernel is supported
+
+in Debian, Devuan and Ubuntu only. You can compile the
+
+v4l tree or a vanilla kernel. Aborting....
+
+"
+    env_clean
+    exit 0
+  fi
+fi
+
+# Get build-deps, Debian, Devuan and Ubuntu only.
+if [ "$OS" = "Debian" -o "$OS" = "Ubuntu" -o "$OS" = "Devuan" ]; then
+  if ! dpkg-query -l build-essential | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency build-essential, marking for installation.
+
+"
+    apt-get install build-essential -y || die "Error installing dependency build-essential"
+  fi
+  if ! dpkg-query -l asciidoc | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency asciidoc, marking for installation.
+
+"
+    apt-get install asciidoc --no-install-recommends -y || die "Error installing dependency asciidoc"
+  fi
+  if ! dpkg-query -l binutils-dev | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency binutils-dev, marking for installation.
+
+"
+    apt-get install binutils-dev --no-install-recommends -y || die "Error installing dependency binutils-dev"
+  fi
+  if ! dpkg-query -l bison | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency bison, marking for installation.
+
+"
+    apt-get install bison --no-install-recommends -y || die "Error installing dependency bison"
+  fi
+  if ! dpkg-query -l devscripts | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency devscripts, marking for installation.
+
+"
+    apt-get install devscripts --no-install-recommends -y || die "Error installing dependency devscripts"
+  fi
+  if ! dpkg-query -l libelf-dev | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency libelf-dev, marking for installation.
+
+"
+    apt-get install libelf-dev --no-install-recommends -y || die "Error installing dependency libelf-dev"
+  fi
+  if ! dpkg-query -l fakeroot | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency fakeroot, marking for installation.
+
+"
+    apt-get install fakeroot --no-install-recommends -y || die "Error installing dependency fakeroot"
+  fi
+  if ! dpkg-query -l flex | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency flex, marking for installation.
+
+"
+    apt-get install flex --no-install-recommends -y || die "Error installing dependency flex"
+  fi
+  if ! dpkg-query -l initramfs-tools | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency initramfs-tools, marking for installation.
+
+"
+    apt-get install initramfs-tools --no-install-recommends -y || die "Error installing dependency initramfs-tools"
+  fi
+  if ! dpkg-query -l kernel-package | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency kernel-package, marking for installation.
+
+"
+    apt-get install kernel-package --no-install-recommends -y || die "Error installing dependency kernel-package"
+  fi
+  if ! dpkg-query -l kernel-wedge | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency kernel-wedge, marking for installation.
+
+"
+    apt-get install kernel-wedge --no-install-recommends -y || die "Error installing dependency kernel-wedge"
+    if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+      apt-get -t $RELEASE-backports install kernel-wedge --no-install-recommends -y > /dev/null 2>&1
+      apt-get -t $RELEASE-backports install linux-base --no-install-recommends -y > /dev/null 2>&1
+      apt-get -t $RELEASE-backports install irqbalance --no-install-recommends -y > /dev/null 2>&1
+      apt-get -t $RELEASE-backports install firmware-linux-free --no-install-recommends -y > /dev/null 2>&1
+    fi
+  else
+    if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+      apt-get -t $RELEASE-backports install kernel-wedge --no-install-recommends -y > /dev/null 2>&1
+    fi
+  fi
+  if ! dpkg-query -l libdigest-sha-perl | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency libdigest-sha-perl, marking for installation.
+
+"
+    apt-get install libdigest-sha-perl --no-install-recommends -y || die "Error installing dependency libdigest-sha-perl"
+  fi
+  if ! dpkg-query -l libfile-fcntllock-perl | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency libfile-fcntllock-perl, marking for installation.
+
+"
+    apt-get install libfile-fcntllock-perl --no-install-recommends -y || die "Error installing dependency libfile-fcntllock-perl"
+  fi
+  if ! dpkg-query -l libproc-processtable-perl | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency libproc-processtable-perl, marking for installation.
+
+"
+    apt-get install libproc-processtable-perl --no-install-recommends -y || die "Error installing dependency libproc-processtable-perl"
+  fi
+  if ! dpkg-query -l bin86 | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency bin86, marking for installation.
+
+"
+    apt-get install bin86 --no-install-recommends -y || die "Error installing dependency bin86"
+  fi
+  if ! dpkg-query -l makedumpfile | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency makedumpfile, marking for installation.
+
+"
+    apt-get install makedumpfile --no-install-recommends -y || die "Error installing dependency makedumpfile"
+  fi
+  if ! dpkg-query -l libncurses5 | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency libncurses5, marking for installation.
+
+"
+    apt-get install libncurses5 --no-install-recommends -y || die "Error installing dependency libncurses5"
+  fi
+  if ! dpkg-query -l libncurses5-dev | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency libncurses5-dev, marking for installation.
+
+"
+    apt-get install libncurses5-dev --no-install-recommends -y || die "Error installing dependency libncurses5-dev"
+  fi
+  if ! dpkg-query -l patch | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency patch, marking for installation.
+
+"
+    apt-get install patch --no-install-recommends -y || die "Error installing dependency patch"
+  fi
+  if ! dpkg-query -l patchutils | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency patchutils, marking for installation.
+
+"
+    apt-get install patchutils --no-install-recommends -y || die "Error installing dependency patchutils"
+  fi
+  if ! dpkg-query -l g++ | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency g++, marking for installation.
+
+"
+    apt-get install g++ --no-install-recommends -y || die "Error installing dependency g++"
+  fi
+  apt-get build-dep --no-install-recommends linux -y
+  if ! [ "$?" -eq 0 ]; then
+    echo "
+Error(s) while installing build dependencies
+
+Aborting...
+"
+    env_clean
+    exit 1
+  fi
+fi
+
+#
+# Get the source
+#
+
+# Debian
+if [ "x$stock_opt" = "xyes" ]; then
+  echo "
+Going to download the kernel source.
+"
+  sleep 3
+  apt-get source linux -y || die "Error(s) while fetching Debian Linux source"
+  cd linux-*
+  FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
+  SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
+  if [ "$FIRST_DIGIT" -eq 4 -a "$SECOND_DIGIT" -lt 9 ]; then
+    echo "
+Minimum supported kernel version is 4.9.x.
+Aborting...
+"
+    exit 1
+  elif [ "$FIRST_DIGIT" -lt 4 ]; then
+    echo "
+Minimum supported kernel version is 4.9.x.
+Aborting...
+"
+    exit 1
+  fi
+fi
+
+# Vanilla
+if [ "x$vanilla_opt" != "x" ]; then
+  echo "
+Going to download the kernel source.
+"
+  sleep 3
+  if [ "x$next_opt" = "xno" ]; then
+    if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
+      wget https://www.kernel.org/pub/linux/kernel/v$MAJOR.x/testing/linux-$vanilla_opt.tar.xz || die "Error(s) while fetching Linux source"
+    else
+      wget https://www.kernel.org/pub/linux/kernel/v$MAJOR.x/linux-$vanilla_opt.tar.xz || die "Error(s) while fetching Linux source"
+    fi
+    tar -xJf linux-$vanilla_opt.tar.xz
+    cd linux-$vanilla_opt
+    make clean && make mrproper
+    if [ "x$debug_opt" = "xyes" ]; then
+      echo "
+Source is downloaded.
+"
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        env_clean
+        exit 0
+      fi
+    fi
+  fi
+fi
+
+# linux-next
+if ! [ "x$next_opt" = "xno" ]; then
+  git clone --depth=1 git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git ./linux-$next_opt || die "Error(s) while fetching Linux source"
+  cd linux-$next_opt
+  make clean && make mrproper
+  if [ "x$debug_opt" = "xyes" ]; then
+    echo "
+Source is downloaded.
+"
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
+      env_clean
+      exit 0
+    fi
+  fi
+fi
+
+#
+# Patch the source
+#
+
+# Common (stock and vanilla kernels)
+FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
+SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
+EXTRA_DIGIT="0"
+VERSION="$FIRST_DIGIT$SECOND_DIGIT"
+chars=`echo -n $SECOND_DIGIT  | wc -c`
+if ! [ "$chars" -eq 2 ]; then
+VERSION="$FIRST_DIGIT$EXTRA_DIGIT$SECOND_DIGIT"
+fi
+
+# Common (stock and vanilla kernels)
+# saa716x patch
+mkdir drivers/media/pci/saa716x
+cp -f ../drivers/media/pci/saa716x/* drivers/media/pci/saa716x/
+if [ "$VERSION" -lt 410 ]; then
+  patch -p0 < ../Kconfig-4.5.patch
+  _patch
+else
+  patch -p0 < ../Kconfig-4.10.patch
+  _patch
+fi
+if [ "x$debug_opt" = "xyes" ]; then
+  echo "
+saa716x added, Kconfig patched for saa716x.
+"
+  confirmyes
+  if ! [ "$?" -eq 0 ]; then
+    env_clean
+    exit 0
+  fi
+fi
+patch -p0 < ../Makefile-4.2.patch
+_patch
+if [ "x$debug_opt" = "xyes" ]; then
+  echo "
+Makefile is patched for saa716x.
+"
+  confirmyes
+  if ! [ "$?" -eq 0 ]; then
+    env_clean
+    exit 0
+  fi
+fi
+
+# Common (stock and vanilla kernels)
+# kernel-package patch for linux-4.10.x and up
+touch REPORTING-BUGS
+
+# Common (stock and vanilla kernels)
+# mediacontroller patch
+if [ "$VERSION" -gt 404 -a "$VERSION" -lt 410 ]; then
+  patch -p0 < ../mediacontroller.patch
+  _patch
+elif [ "$VERSION" -gt 409 ]; then
+  patch -p0 < ../mediacontroller4.10.patch
+  _patch
+fi
+if [ "$VERSION" -gt 404 ]; then
+  if [ "x$debug_opt" = "xyes" ]; then
+    echo "
+MEDIA_CONTROLLER_DVB is deactivated.
+"
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
+      env_clean
+      exit 0
+    fi
+  fi
+fi
+
+#
+# Configure the source
+#
+
+# Are we running amd64 or what?
+if uname -a | grep "x86_64" > /dev/null 2>&1; then
+  CONFIG="amd64"
+else
+  CONFIG="i386"
+fi
+
+# Debian
+if [ "x$stock_opt" = "xyes" ]; then
+  if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+    if [ "$abi_opt" = "900" ]; then
+      DEBIANKERNEL=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+\.[[:digit:]]\+')
+      if [ "$CONFIG" = "amd64" ]; then
+        RUNNING=$(uname -r | grep "90[0-9]-amd64")
+        if [ -d /lib/modules/$DEBIANKERNEL.0-900-amd64 ]; then
+          if ! [ -d /lib/modules/$DEBIANKERNEL.0-901-amd64 ]; then
+            abi_opt="901"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-902-amd64 ]; then
+            abi_opt="902"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-903-amd64 ]; then
+            abi_opt="903"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-904-amd64 ]; then
+            abi_opt="904"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-905-amd64 ]; then
+            abi_opt="905"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-906-amd64 ]; then
+            abi_opt="906"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-907-amd64 ]; then
+            abi_opt="907"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-908-amd64 ]; then
+            abi_opt="908"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-909-amd64 ]; then
+            abi_opt="909"
+          else
+            if [ "$RUNNING" = "" ]; then
+              echo "
+
+You have a total of 10 \"$DEBIANKERNEL.0-90x-amd64\" kernels installed.
+Not going to install any more of those, aborting...
+"
+              env_clean
+              exit 0
+            else
+              echo  "
+
+You have a total of 10 \"$DEBIANKERNEL.0-90x-amd64\" kernels installed.
+You are currently running the $RUNNING version.
+Not going to install any more of those, aborting...
+"
+              env_clean
+              exit 0
+            fi 
+          fi
+        fi
+      else
+        RUNNING=$(uname -r | grep "90[0-9]-686-pae")
+        if [ -d /lib/modules/$DEBIANKERNEL.0-900-686-pae ]; then
+          if ! [ -d /lib/modules/$DEBIANKERNEL.0-901-686-pae ]; then
+            abi_opt="901"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-902-686-pae ]; then
+            abi_opt="902"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-903-686-pae ]; then
+            abi_opt="903"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-904-686-pae ]; then
+            abi_opt="904"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-905-686-pae ]; then
+            abi_opt="905"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-906-686-pae ]; then
+            abi_opt="906"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-907-686-pae ]; then
+            abi_opt="907"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-908-686-pae ]; then
+            abi_opt="908"
+          elif ! [ -d /lib/modules/$DEBIANKERNEL.0-909-686-pae ]; then
+            abi_opt="909"
+          else
+            if [ "$RUNNING" = "" ]; then
+              echo "
+
+You have a total of 10 \"$DEBIANKERNEL.0-90x-686-pae\" kernels installed.
+Not going to install any more of those, aborting...
+"
+              env_clean
+              exit 0
+            else
+              echo  "
+
+You have a total of 10 \"$DEBIANKERNEL.0-90x-686-pae\" kernels installed.
+You are currently running the $RUNNING version.
+Not going to install any more of those, aborting...
+"
+              env_clean
+              exit 0
+            fi 
+          fi
+        fi
+      fi
+    fi
+    _ABINAME=$(cat debian/config/defines | grep 'abiname:' | awk -F"[ ]" '{ print $NF }')
+    export _ABINAME
+    sed -i "s/abiname: $_ABINAME/abiname: $abi_opt/" debian/config/defines
+    sed -i "s/-$_ABINAME/-$abi_opt/g" debian/rules.gen
+    fakeroot debian/rules debian/control-real
+    sed -i "s/DEBUG='True'/DEBUG='FALSE'/g" debian/rules.gen
+    if [ "$CONFIG" = "amd64" ]; then
+      fakeroot make -f debian/rules.gen setup_amd64_none_amd64
+      sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian/build/build_amd64_none_amd64/.config
+    if cat debian/build/build_amd64_none_amd64/.config | grep "debian/certs/benh@debian.org.cert.pem" > /dev/null 2>&1; then
+      sed -i "s/debian\/certs\/benh@debian.org.cert.pem/certs\/signing_key.pem/" debian/build/build_amd64_none_amd64/.config
+      sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" debian/build/build_amd64_none_amd64/.config
+    fi
+    else
+      fakeroot make -f debian/rules.gen setup_i386_none_686-pae_real
+      sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian/build/build_i386_none_686-pae/.config
+    fi
+    if cat debian/build/build_i386_none_686-pae/.config | grep "debian/certs/benh@debian.org.cert.pem" > /dev/null 2>&1; then
+      sed -i "s/debian\/certs\/benh@debian.org.cert.pem/certs\/signing_key.pem/" debian/build/build_i386_none_686-pae/.config
+      sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" debian/build/build_i386_none_686-pae/.config
+    fi
+    if [ "x$debug_opt" = "xyes" ]; then
+      echo "
+Kernel configured.
+"
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        env_clean
+        exit 0
+      fi
+    fi
+  elif [ "$OS" = "Ubuntu" ]; then
+    chmod a+x debian/scripts/*
+    chmod a+x debian/scripts/misc/*
+    sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian.*/config/config.common.ubuntu
+    sed -i "/CONFIG_DVB_LNBP22=m/a CONFIG_DVB_LOOPBACK_ADAPTER=m" debian.*/config/config.common.ubuntu
+    if [ "x$drivers_opt" = "xyes" ]; then
+      sed -i "/CONFIG_VIDEO_SAA7146_VV=m/a CONFIG_VIDEO_SAA716X=m" debian.*/config/config.common.ubuntu
+    fi
+    fakeroot debian/rules updateconfigs
+    UBUNTUKERNEL=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+\.[[:digit:]]\+')
+    _ABINAME=$(cat debian/changelog | head -1 | grep -o '[[:digit:]]\+' | head -4 | awk 'NR==4')
+    _ABINAME_SUB=$(ls debian.master/abi | head -1 | cut -d'.' -f 4)
+    export _ABINAME
+    if [ "$abi_opt" = "900" ]; then
+      RUNNING=$(uname -r | grep "90[0-9]-generic")
+      if [ -d /lib/modules/$UBUNTUKERNEL.0-900-generic ]; then
+        if ! [ -d /lib/modules/$UBUNTUKERNEL.0-901-generic ]; then
+          abi_opt="901"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-902-generic ]; then
+          abi_opt="902"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-903-generic ]; then
+          abi_opt="903"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-904-generic ]; then
+          abi_opt="904"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-905-generic ]; then
+          abi_opt="905"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-906-generic ]; then
+          abi_opt="906"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-907-generic ]; then
+          abi_opt="907"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-908-generic ]; then
+          abi_opt="908"
+        elif ! [ -d /lib/modules/$UBUNTUKERNEL.0-909-generic ]; then
+          abi_opt="909"
+        else
+          if [ "$RUNNING" = "" ]; then
+            echo "
+
+You have a total of 10 \"$UBUNTUKERNEL.0-90x-generic\" kernels installed.
+Not going to install any more of those, aborting...
+"
+            env_clean
+            exit 0
+          else
+            echo  "
+
+You have a total of 10 \"$UBUNTUKERNEL.0-90x-generic\" kernels installed.
+You are currently running the $RUNNING version.
+Not going to install any more of those, aborting...
+"
+            env_clean
+            exit 0
+          fi 
+        fi
+      fi
+    fi
+    sed -i "s/0-$_ABINAME/0-$abi_opt/g" debian/control
+    sed -i "s/0-$_ABINAME/0-$abi_opt/g" debian/control.stub
+    sed -i "s/0-$_ABINAME/0-$abi_opt/g" debian/changelog
+    sed -i "s/0-$_ABINAME/0-$abi_opt/g" debian.*/control
+    sed -i "s/0-$_ABINAME/0-$abi_opt/g" debian.*/control.stub
+    sed -i "s/0-$_ABINAME/0-$abi_opt/g" debian.*/changelog
+    fakeroot debian/rules clean
+    mv debian.master/abi/$UBUNTUKERNEL.0-$_ABINAME.$_ABINAME_SUB debian.master/abi/$UBUNTUKERNEL.0-$abi_opt.$_ABINAME_SUB
+    if [ "x$debug_opt" = "xyes" ]; then
+      echo "
+Kernel configured.
+"
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        env_clean
+        exit 0
+      fi
+    fi
+  fi
+fi
+
+# Vanilla
+if [ "x$vanilla_opt" != "x" ]; then
+  echo -en "
+Going to configure your $vanilla_opt vanilla kernel.
+
+"
+  if [ "$OS" = "Debian" -o "$OS" = "Devuan" ] && [ "$CONFIG" = "amd64" ]; then
+    if [ "$config_opt" = "big" ]; then
+      if [ -f ../kernelconfig/amd64/$MAJOR.$MINOR/config ]; then
+        kernelconfig
+      else
+        make oldconfig
+      fi
+    elif [ "$config_opt" = "small" ]; then
+      make localmodconfig
+    fi
+  elif [ "$OS" = "Ubuntu" ] && [ "$CONFIG" = "amd64" ]; then
+    if [ "$config_opt" = "big" ]; then
+      if [ -f ../kernelconfig/amd64/ubuntu/$MAJOR.$MINOR/config ]; then
+        ubuntukernelconfig
+      else
+        make oldconfig
+      fi
+    elif [ "$config_opt" = "small" ]; then
+      make localmodconfig
+    fi
+  else
+    make oldconfig
+  fi
+  ADAPTERS=$(cat .config | grep "CONFIG_DVB_MAX_ADAPTERS" | grep -o '[[:digit:]]\+')
+  if ! [ "$ADAPTERS" = "$adapters_opt" ]; then
+    sed -i "s/CONFIG_DVB_MAX_ADAPTERS=$ADAPTERS/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" .config
+  fi
+  #if cat .config | grep "CONFIG_MEDIA_CONTROLLER_DVB=y" > /dev/null 2>&1; then
+    #sed -i "s/CONFIG_MEDIA_CONTROLLER_DVB=y/# CONFIG_MEDIA_CONTROLLER_DVB is not set/" .config
+  #fi
+  if cat .config | grep "debian/certs/benh@debian.org.cert.pem" > /dev/null 2>&1; then
+    sed -i "s/debian\/certs\/benh@debian.org.cert.pem/certs\/signing_key.pem/" .config
+    sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" .config
+  fi
+  if [ "x$debug_opt" = "xyes" ]; then
+    echo "
+Kernel configured.
+"
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
+      env_clean
+      exit 0
+    fi
+  fi
+fi
+
+#
+# Compile the source
+#
+
+# Debian
+if [ "x$stock_opt" = "xyes" ]; then
+  if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+    if [ "$CONFIG" = "amd64" ]; then
+      if [ "$VERSION" -lt 409 ]; then
+        fakeroot make -f debian/rules.gen binary-arch_amd64_none_real 2>&1 | tee ../buildlog_amd64_none_real
+      else
+        fakeroot make -f debian/rules.gen binary-indep_none_real 2>&1 | tee ../buildlog_binary-indep_none_real
+      fi
+      if [ "x$debug_opt" = "xyes" ]; then
+        fakeroot make -f debian/rules.gen binary-arch_amd64_none_amd64 2>&1 | tee ../buildlog_amd64_none_amd64
+      else
+        fakeroot make -j2 -f debian/rules.gen binary-arch_amd64_none_amd64 2>&1 | tee ../buildlog_amd64_none_amd64
+      fi
+    else
+      if [ "$VERSION" -lt 409 ]; then
+        fakeroot make -f debian/rules.gen binary-arch_i386_none_real 2>&1 | tee ../buildlog_i386_none_real
+      else
+        fakeroot make -f debian/rules.gen binary-indep_none_real 2>&1 | tee ../buildlog_binary-indep_none_real
+      fi
+      if [ "x$debug_opt" = "xyes" ]; then
+        fakeroot make -f debian/rules.gen binary-arch_i386_none_686-pae 2>&1 | tee ../buildlog_i386_none_686-pae
+      else
+        fakeroot make -j2 -f debian/rules.gen binary-arch_i386_none_686-pae 2>&1 | tee ../buildlog_i386_none_686-pae
+      fi
+    fi
+    file=($DIR/linux-image-*.deb)
+    if ! [ -f "$file" ]; then
+      echo "
+Error(s) while compiling the kernel
+
+Aborting...
+"
+      env_clean
+      exit 1
+    fi
+    if [ "x$headers_opt" = "xyes" ]; then
+      file=($DIR/linux-headers-*.deb)
+      if ! [ -f "$file" ]; then
+        echo "
+Error(s) while creating the kernel headers package(s)
+
+Aborting...
+"
+        env_clean
+        exit 1
+      fi
+    fi
+    cd ..
+    rm -f xen*
+  elif [ "$OS" = "Ubuntu" ]; then
+    AUTOBUILD=1 NOEXTRAS=1 skipabi=true fakeroot debian/rules binary-headers binary-generic 2>&1 | tee ../buildlog_ubuntu_generic
+    file=($DIR/linux-image-*.deb)
+    if ! [ -f "$file" ]; then
+      echo "
+Error(s) while compiling the kernel
+
+Aborting...
+"
+      env_clean
+      exit 1
+    fi
+    if [ "x$headers_opt" = "xyes" ]; then
+      file=($DIR/linux-headers-*.deb)
+      if ! [ -f "$file" ]; then
+        echo "
+Error(s) while creating the kernel headers package(s)
+
+Aborting...
+"
+        env_clean
+        exit 1
+      fi
+    fi
+    cd ..
+    rm -f linux-tools*
+    rm -f linux-cloud*
+  fi
+  if [ "x$debug_opt" = "xyes" ]; then
+    echo "
+Kernel compiled.
+"
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
+      env_clean
+      exit 0
+    fi
+  fi
+fi
+
+# Vanilla
+if [ "x$vanilla_opt" != "x" ]; then
+  CURRENTGCC=$( readlink -f /usr/bin/gcc | rev | cut -d'-' -f1 | rev )
+  OLDGCC="$CURRENTGCC"
+  GCCCHANGE="0"
+  if [ "x$gcc_opt" != "x" -a "x$CURRENTGCC" != "x$gcc_opt" ]; then
+    ../gcc-version $gcc_opt
+    GCCCHANGE="1"
+  fi
+  make-kpkg --rootcmd fakeroot clean
+  if [ "x$debug_opt" = "xno" ]; then
+    export CONCURRENCY_LEVEL=2
+  fi
+  if [ "x$next_opt" = "xno" ]; then
+    if [ "x$headers_opt" = "xyes" ]; then
+      make-kpkg --rootcmd fakeroot --initrd kernel_image kernel_headers 2>&1 | tee ../buildlog_vanilla_$vanilla_opt
+    else
+      make-kpkg --rootcmd fakeroot --initrd kernel_image 2>&1 | tee ../buildlog_vanilla_$vanilla_opt
+    fi
+  else
+    make-kpkg --rootcmd fakeroot --initrd kernel_image 2>&1 | tee ../buildlog_vanilla_$vanilla_opt
+  fi
+  file=($DIR/linux-image-*.deb)
+  if ! [ -f "$file" ]; then
+    echo "
+Error(s) while compiling the kernel
+
+Aborting...
+"
+    if [ "$GCCCHANGE" -eq 1 ]; then
+      ../gcc-version $OLDGCC
+    fi
+    env_clean
+    exit 1
+  fi
+  if [ "x$headers_opt" = "xyes" ]; then
+    file=($DIR/linux-headers-*.deb)
+    if ! [ -f "$file" ]; then
+      echo "
+Error(s) while creating the kernel headers package(s)
+
+Aborting...
+"
+      if [ "$GCCCHANGE" -eq 1 ]; then
+        ../gcc-version $OLDGCC
+      fi
+      env_clean
+      exit 1
+    fi
+  fi
+  cd ..
+  if [ "$GCCCHANGE" -eq 1 ]; then
+    ./gcc-version $OLDGCC
+  fi
+fi
+
+#
+# Install the result
+#
+
+# Debian
+if [ "x$stock_opt" = "xyes" ]; then
+  if [ "x$headers_opt" = "xyes" ]; then
+    if [ "x$debug_opt" = "xyes" ]; then
+      echo "
+Going to install your stock kernel and headers.
+"
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        env_clean
+        exit 0
+      fi
+    fi
+    dpkg -i *.deb
+    apt-get -f install -y
+  else
+    if [ "x$debug_opt" = "xyes" ]; then
+      echo "
+Going to install your stock kernel.
+"
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        env_clean
+        exit 0
+      fi
+    fi
+    dpkg -i linux-image-*
+  fi
+  if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+    if [ "$CONFIG" = "amd64" ]; then
+      echo "
+
+Installed:
+
+linux-image-$DEBIANKERNEL.0-$abi_opt-amd64"
+      if [ "x$headers_opt" = "xyes" ]; then
+        echo "linux-headers-$DEBIANKERNEL.0-$abi_opt-amd64
+linux-headers-$DEBIANKERNEL.0-$abi_opt-common"
+      fi
+      echo "
+All done, you should reboot NOW!
+
+"
+    else
+      echo "
+
+Installed:
+
+linux-image-$DEBIANKERNEL.0-$abi_opt-686-pae"
+      if [ "x$headers_opt" = "xyes" ]; then
+        echo "linux-headers-$DEBIANKERNEL.0-$abi_opt-686-pae
+linux-headers-$DEBIANKERNEL.0-$abi_opt-common"
+      fi
+      echo "
+All done, you should reboot NOW!
+
+"
+    fi
+  elif [ "$OS" = "Ubuntu" ]; then
+    echo "
+Installed:
+
+linux-image-$UBUNTUKERNEL.0-$abi_opt-generic
+linux-image-extra-$UBUNTUKERNEL.0-$abi_opt-generic"
+    if [ "x$headers_opt" = "xyes" ]; then
+      echo "linux-headers-$UBUNTUKERNEL.0-$abi_opt-generic
+linux-headers-$UBUNTUKERNEL.0-$abi_opt"
+    fi
+    echo "
+All done, you should reboot NOW!
+
+"
+  fi
+fi
+
+# Vanilla
+if [ "x$vanilla_opt" != "x" ]; then
+  if [ "x$debug_opt" = "xyes" ]; then
+    echo "
+Going to install your $vanilla_opt vanilla kernel.
+"
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
+      if [ "$GCCCHANGE" -eq 1 ]; then
+        ./gcc-version $OLDGCC
+      fi
+      env_clean
+      exit 0
+    fi
+  fi
+
+  dpkg -i linux-image-* && sleep 2
+
+  if [ "x$headers_opt" = "xyes" ]; then
+    if [ "x$debug_opt" = "xyes" ]; then
+      echo "
+Going to link and install your $vanilla_opt kernel headers.
+"
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        if [ "$GCCCHANGE" -eq 1 ]; then
+          ./gcc-version $OLDGCC
+        fi
+        env_clean
+        exit 0
+      fi
+    fi
+    if echo $vanilla_opt | grep "rc" > /dev/null 2>&1; then
+      BUILDLINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/-rc/.0-rc/')build"
+      SOURCELINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/-rc/.0-rc/')source"
+      HEADERSDIR="/usr/src/$(ls -d1 */ | grep "linux" | sed 's/linux-/linux-headers-/' | sed 's/-r/.0-r/' | sed 's/\///')"
+    elif echo $vanilla_opt | grep -o '[[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+' > /dev/null 2>&1; then
+      BUILDLINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//')build"
+      SOURCELINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//')source"
+      HEADERSDIR="/usr/src/$(ls -d1 */ | grep "linux" | sed 's/linux-/linux-headers-/' | sed 's/\///')"
+    else
+      BUILDLINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/\//.0\//')build"
+      SOURCELINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/\//.0\//')source"
+      HEADERSDIR="/usr/src/$(ls -d1 */ | grep "linux" | sed 's/linux-/linux-headers-/' | sed 's/\//.0/')"
+    fi
+    rm -f $BUILDLINK
+    rm -f $SOURCELINK
+    ln -s $HEADERSDIR $SOURCELINK
+    ln -s $HEADERSDIR $BUILDLINK
+    dpkg -i linux-headers-*
+  fi
+  if [ "$?" -eq 0 ]; then
+    if [ "x$headers_opt" = "xyes" ]; then
+      echo -en "
+Your $vanilla_opt vanilla kernel and headers are installed.
+
+"
+    else
+      echo -en "
+Your $vanilla_opt vanilla kernel is installed.
+
+"
+    fi
+  fi
+fi
+
+if [ "x$firmware_opt" = "xyes" ]; then
+  # Install the firmware
+  if ! [ -f /lib/firmware/dvb-tuner-si2158-a20-01.fw ] > /dev/null 2>&1; then
+    echo "
+Do you want to install included firmware into /lib/firmware?
+
+"
+    confirmyes "Yes, please do. [Y/n]"
+    if [ "$?" -eq 0 ]; then   
+      if [ ! -d /lib/firmware ]; then
+        mkdir /lib/firmware
+      fi
+      cp -f firmware/* /lib/firmware/
+    fi
+  fi
+  # Set msi mode for saa716x budget driver
+  if ! cat /etc/modprobe.d/tbs_opensource.conf | grep "int_type=1" > /dev/null 2>&1; then
+    echo "
+Do you want to set \"options saa716x_budget int_type=1\"
+
+and \"options dvb_core dvb_powerdown_on_sleep=0\"
+
+in /etc/modprobe.d/tbs_opensource.conf?
+
+"
+    confirmyes "Yes, please do. [Y/n]"
+    if [ "$?" -eq 0 ]; then
+      echo "options saa716x_budget int_type=1
+options dvb_core dvb_powerdown_on_sleep=0" > /etc/modprobe.d/tbs_opensource.conf
+    fi
+  fi
+fi
+env_clean
