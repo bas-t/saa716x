@@ -385,7 +385,6 @@ Aborting...
 "
     env_clean
     exit 0
-  fi
   elif [ "$MAJOR" -eq 4 -a "$MINOR" -lt 9 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
