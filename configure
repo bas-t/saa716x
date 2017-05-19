@@ -169,7 +169,6 @@ debug_opt="no"
 firmware_opt="yes"
 config_opt="big"
 gcc_opt=""
-genpix_opt="no"
 
 for opt do
   optval="${opt#*=}"
@@ -740,6 +739,15 @@ MEDIA_CONTROLLER_DVB is deactivated.
       exit 0
     fi
   fi
+fi
+
+# Common (stock and vanilla kernels)
+# Temporary msi patch
+if [ "$VERSION" -gt 411 ]; then
+  patch -p0 < ../msi1.patch
+  _patch
+  patch -p0 < ../msi2.patch
+  _patch
 fi
 
 #
