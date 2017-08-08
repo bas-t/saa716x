@@ -200,7 +200,7 @@ for opt do
   ;;
   --gcc=*) gcc_opt="$optval"
   ;;
-  --driver=*) driver_opt="$optval"
+  --driver=*) driver_opt="$optval"; debug_opt="yes"
   ;;
   *)
   die_unknown $opt
