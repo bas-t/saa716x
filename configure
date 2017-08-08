@@ -155,6 +155,8 @@ show_help(){
   echo "                        "
   echo " --gcc=<opt>            [gcc] or set the number."
   echo "                        "
+  echo " --driver=<opt>         [yes] no: don't build the kernel with saa716x."
+  echo "                        "
   exit 0
 }
 
@@ -169,6 +171,7 @@ debug_opt="no"
 firmware_opt="yes"
 config_opt="big"
 gcc_opt=""
+driver_opt="yes"
 
 for opt do
   optval="${opt#*=}"
@@ -196,6 +199,8 @@ for opt do
   --config=*) config_opt="$optval"
   ;;
   --gcc=*) gcc_opt="$optval"
+  ;;
+  --driver=*) driver_opt="$optval"
   ;;
   *)
   die_unknown $opt
@@ -679,35 +684,37 @@ fi
 
 # Common (stock and vanilla kernels)
 # saa716x patch
-mkdir drivers/media/pci/saa716x
-cp -f ../drivers/media/pci/saa716x/* drivers/media/pci/saa716x/
-if [ "$VERSION" -lt 410 ]; then
-  patch -p0 < ../Kconfig-4.5.patch
-  _patch
-else
-  patch -p0 < ../Kconfig-4.10.patch
-  _patch
-fi
-if [ "x$debug_opt" = "xyes" ]; then
-  echo "
+if [ "x$driver_opt" = "xyes" ]; then
+  mkdir drivers/media/pci/saa716x
+  cp -f ../drivers/media/pci/saa716x/* drivers/media/pci/saa716x/
+  if [ "$VERSION" -lt 410 ]; then
+    patch -p0 < ../Kconfig-4.5.patch
+    _patch
+  else
+    patch -p0 < ../Kconfig-4.10.patch
+    _patch
+  fi
+  if [ "x$debug_opt" = "xyes" ]; then
+    echo "
 saa716x added, Kconfig patched for saa716x.
 "
-  confirmyes
-  if ! [ "$?" -eq 0 ]; then
-    env_clean
-    exit 0
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
+      env_clean
+      exit 0
+    fi
   fi
-fi
-patch -p0 < ../Makefile-4.2.patch
-_patch
-if [ "x$debug_opt" = "xyes" ]; then
-  echo "
+  patch -p0 < ../Makefile-4.2.patch
+  _patch
+  if [ "x$debug_opt" = "xyes" ]; then
+    echo "
 Makefile is patched for saa716x.
 "
-  confirmyes
-  if ! [ "$?" -eq 0 ]; then
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
     env_clean
-    exit 0
+    exit
+    fi
   fi
 fi
 
@@ -716,7 +723,7 @@ fi
 touch REPORTING-BUGS
 
 # Common (stock and vanilla kernels)
-# silabs si2168 DVB-C/T patch
+# silabs si2168 DVB-C/T patch (for apps like MythTV, that cannot properly handle multistandard DVB cards.)
 sed -i 's/SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A/SYS_DVBC_ANNEX_A, SYS_DVBT, SYS_DVBT2/' drivers/media/dvb-frontends/si2168.c
 
 #
