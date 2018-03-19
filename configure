@@ -973,8 +973,8 @@ Going to configure your $vanilla_opt vanilla kernel.
     #sed -i "s/CONFIG_MEDIA_CONTROLLER_DVB=y/# CONFIG_MEDIA_CONTROLLER_DVB is not set/" .config
   #fi
   if cat .config | grep "debian/certs/benh@debian.org.cert.pem" > /dev/null 2>&1; then
-    sed -i "s/debian\/certs\/benh@debian.org.cert.pem/certs\/signing_key.pem/" .config
-    sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" .config
+    sed -i "s/debian\/certs\/benh@debian.org.cert.pem/\"\"/" .config
+   # sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" .config
   fi
   if [ "x$debug_opt" = "xyes" ]; then
     echo "
