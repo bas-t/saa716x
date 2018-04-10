@@ -975,7 +975,9 @@ Going to configure your $vanilla_opt vanilla kernel.
   if cat .config | grep "debian/certs/benh@debian.org.cert.pem" > /dev/null 2>&1; then
     sed -i "s/debian\/certs\/benh@debian.org.cert.pem/\"\"/" .config
    # sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" .config
-  fi
+  elif cat .config | grep "debian/certs/test-signing-certs.pem" > /dev/null 2>&1; then
+    sed -i "s/debian\/certs\/test-signing-certs.pem/\"\"/" .config
+  fi    
   if [ "x$debug_opt" = "xyes" ]; then
     echo "
 Kernel configured.
