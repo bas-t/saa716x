@@ -157,6 +157,8 @@ show_help(){
   echo "                        "
   echo " --driver=<opt>         [yes] no: don't build the kernel with saa716x."
   echo "                        "
+  echo " --cleen=<opt>          [no] yes: just clean the repo and exit."
+  echo "                        "
   exit 0
 }
 
@@ -172,6 +174,7 @@ firmware_opt="yes"
 config_opt="big"
 gcc_opt=""
 driver_opt="yes"
+clean_opt="no"
 
 for opt do
   optval="${opt#*=}"
@@ -202,6 +205,8 @@ for opt do
   ;;
   --driver=*) driver_opt="$optval"; debug_opt="yes"
   ;;
+  --clean=*) clean_opt="optval"
+  ;;
   *)
   die_unknown $opt
   ;;
@@ -211,6 +216,15 @@ done
 export abi_opt
 
 DIR=`pwd`
+
+if [ "x$clean_opt" = "xyes" ]; then
+  rm -rf linux* > /dev/null 2>&1
+  rm -rf media* > /dev/null 2>&1
+  rm -rf descrambler > /dev/null 2>&1
+  git clean -xfd > /dev/null
+  git reset --hard HEAD > /dev/null
+  exit 0
+fi
 
 # Check git status
 if [ "x$update_opt" = "xyes" ]; then
