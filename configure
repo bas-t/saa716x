@@ -403,11 +403,11 @@ Aborting...
 "
     env_clean
     exit 0
-  elif [ "$MAJOR" -eq 4 -a "$MINOR" -lt 9 ]; then
+  elif [ "$MAJOR" -eq 4 -a "$MINOR" -lt 19 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
 
-Minimum supported kernelseries is 4.9.x
+Minimum supported kernelseries is 4.19.x
 
 Aborting...
 "
