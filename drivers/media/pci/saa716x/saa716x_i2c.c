@@ -13,8 +13,6 @@
 #include "saa716x_cgu_reg.h"
 
 #include "saa716x_i2c.h"
-#include "saa716x_msi.h"
-#include "saa716x_spi.h"
 #include "saa716x_priv.h"
 
 #define SAA716x_I2C_TXFAIL	(I2C_ERROR_IBE		| \
@@ -26,110 +24,6 @@
 
 #define SAA716x_I2C_RXBUSY	(I2C_RECEIVE		| \
 				 I2C_RECEIVE_CLEAR)
-
-static const char* state[] = {
-	"Idle",
-	"DoneStop",
-	"Busy",
-	"TOscl",
-	"TOarb",
-	"DoneWrite",
-	"DoneRead",
-	"DoneWriteTO",
-	"DoneReadTO",
-	"NoDevice",
-	"NoACK",
-	"BUSErr",
-	"ArbLost",
-	"SEQErr",
-	"STErr"
-};
-
-int saa716x_i2c_irqevent(struct saa716x_dev *saa716x, u8 bus)
-{
-	u32 stat, mask;
-	u32 *I2C_DEV;
-
-	BUG_ON(saa716x == NULL);
-	I2C_DEV = saa716x->I2C_DEV;
-
-	stat = SAA716x_EPRD(I2C_DEV[bus], INT_STATUS);
-	mask = SAA716x_EPRD(I2C_DEV[bus], INT_ENABLE);
-	saa716x->i2c[bus].i2c_stat = stat;
-	dprintk(SAA716x_DEBUG, 0, "Bus(%d) I2C event: Status=<%s> --> Stat=<%02x> Mask=<%02x>",
-		bus, state[stat], stat, mask);
-
-	if (!(stat & mask))
-		return -1;
-
-	SAA716x_EPWR(I2C_DEV[bus], INT_CLR_STATUS, stat);
-
-	if (stat & I2C_INTERRUPT_STFNF)
-		dprintk(SAA716x_DEBUG, 0, "<STFNF> ");
-
-	if (stat & I2C_INTERRUPT_MTFNF) {
-		dprintk(SAA716x_DEBUG, 0, "<MTFNF> ");
-	}
-
-	if (stat & I2C_INTERRUPT_RFDA)
-		dprintk(SAA716x_DEBUG, 0, "<RFDA> ");
-
-	if (stat & I2C_INTERRUPTE_RFF)
-		dprintk(SAA716x_DEBUG, 0, "<RFF> ");
-
-	if (stat & I2C_SLAVE_INTERRUPT_STDR)
-		dprintk(SAA716x_DEBUG, 0, "<STDR> ");
-
-	if (stat & I2C_MASTER_INTERRUPT_MTDR) {
-		dprintk(SAA716x_DEBUG, 0, "<MTDR> ");
-	}
-
-	if (stat & I2C_ERROR_IBE)
-		dprintk(SAA716x_DEBUG, 0, "<IBE> ");
-
-	if (stat & I2C_MODE_CHANGE_INTER_MSMC)
-		dprintk(SAA716x_DEBUG, 0, "<MSMC> ");
-
-	if (stat & I2C_SLAVE_RECEIVE_INTER_SRSD)
-		dprintk(SAA716x_DEBUG, 0, "<SRSD> ");
-
-	if (stat & I2C_SLAVE_TRANSMIT_INTER_STSD)
-		dprintk(SAA716x_DEBUG, 0, "<STSD> ");
-
-	if (stat & I2C_ACK_INTER_MTNA)
-		dprintk(SAA716x_DEBUG, 0, "<MTNA> ");
-
-	if (stat & I2C_FAILURE_INTER_MAF)
-		dprintk(SAA716x_DEBUG, 0, "<MAF> ");
-
-	if (stat & I2C_INTERRUPT_MTD)
-		dprintk(SAA716x_DEBUG, 0, "<MTD> ");
-
-	return 0;
-}
-
-static irqreturn_t saa716x_i2c_irq(int irq, void *dev_id)
-{
-	struct saa716x_dev *saa716x	= (struct saa716x_dev *) dev_id;
-
-	if (unlikely(saa716x == NULL)) {
-		printk("%s: saa716x=NULL", __func__);
-		return IRQ_NONE;
-	}
-	dprintk(SAA716x_DEBUG, 1, "MSI STAT L=<%02x> H=<%02x>, CTL L=<%02x> H=<%02x>",
-		SAA716x_EPRD(MSI, MSI_INT_STATUS_L),
-		SAA716x_EPRD(MSI, MSI_INT_STATUS_H),
-		SAA716x_EPRD(MSI, MSI_INT_ENA_L),
-		SAA716x_EPRD(MSI, MSI_INT_ENA_H));
-
-	dprintk(SAA716x_DEBUG, 1, "I2C STAT 0=<%02x> 1=<%02x>, CTL 0=<%02x> 1=<%02x>",
-		SAA716x_EPRD(I2C_A, INT_STATUS),
-		SAA716x_EPRD(I2C_B, INT_STATUS),
-		SAA716x_EPRD(I2C_A, INT_CLR_STATUS),
-		SAA716x_EPRD(I2C_B, INT_CLR_STATUS));
-
-	return IRQ_HANDLED;
-}
 
 static void saa716x_term_xfer(struct saa716x_i2c *i2c, u32 I2C_DEV)
 {
@@ -273,13 +167,6 @@ static int saa716x_i2c_hwinit(struct saa716x_i2c *i2c, u32 I2C_DEV)
 		err = -EIO;
 		goto exit;
 	}
-#if 0
-	saa716x_add_irqvector(saa716x,
-				i2c_vec[i].vector,
-				i2c_vec[i].edge,
-				i2c_vec[i].handler,
-				SAA716x_I2C_ADAPTER(i));
-#endif
 	reg = SAA716x_EPRD(CGU, CGU_SCR_3);
 	dprintk(SAA716x_DEBUG, 1, "Adapter (%02x) Autowake <%d> Active <%d>",
 		I2C_DEV,
@@ -305,7 +192,6 @@ static int saa716x_i2c_send(struct saa716x_i2c *i2c, u32 I2C_DEV, u32 data)
 
 	/* Check FIFO status before TX */
 	reg = SAA716x_EPRD(I2C_DEV, I2C_STATUS);
-	i2c->stat_tx_prior = reg;
 	if (reg & SAA716x_I2C_TXBUSY) {
 		for (i = 0; i < 100; i++) {
 			/* TODO! check for hotplug devices */
@@ -338,7 +224,6 @@ static int saa716x_i2c_send(struct saa716x_i2c *i2c, u32 I2C_DEV, u32 data)
 			break;
 		}
 	}
-	i2c->stat_tx_done = reg;
 
 	if (!(reg & I2C_TRANSMIT_CLEAR)) {
 		dprintk(SAA716x_ERROR, 1, "TXFIFO not empty after Timeout, tried %d loops!", i);
@@ -610,30 +495,12 @@ bail_out:
 
 static u32 saa716x_i2c_func(struct i2c_adapter *adapter)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_SMBUS_EMUL;
 }
 
 static const struct i2c_algorithm saa716x_algo = {
 	.master_xfer	= saa716x_i2c_xfer,
 	.functionality	= saa716x_i2c_func,
-};
-
-struct saa716x_i2cvec {
-	u32			vector;
-	enum saa716x_edge	edge;
-	irqreturn_t (*handler)(int irq, void *dev_id);
-};
-
-static const struct saa716x_i2cvec i2c_vec[] = {
-	{
-		.vector		= I2CINT_0,
-		.edge		= SAA716x_EDGE_RISING,
-		.handler	= saa716x_i2c_irq
-	}, {
-		.vector 	= I2CINT_1,
-		.edge		= SAA716x_EDGE_RISING,
-		.handler	= saa716x_i2c_irq
-	}
 };
 
 int saa716x_i2c_init(struct saa716x_dev *saa716x)
@@ -670,7 +537,7 @@ int saa716x_i2c_init(struct saa716x_dev *saa716x)
 
 			strcpy(adapter->name, SAA716x_I2C_ADAPTER(i));
 
-			adapter->owner		= THIS_MODULE;
+			adapter->owner		= saa716x->module;
 			adapter->algo		= &saa716x_algo;
 			adapter->algo_data 	= NULL;
 			adapter->timeout	= 500; /* FIXME ! */
@@ -703,18 +570,11 @@ int saa716x_i2c_init(struct saa716x_dev *saa716x)
 
 	return 0;
 exit:
-	/* delete already added i2c adapters */
-	while (i > 0) {
-		i2c--;
-		adapter = &i2c->i2c_adapter;
-		i2c_del_adapter(adapter);
-		i--;
-	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(saa716x_i2c_init);
 
-int saa716x_i2c_exit(struct saa716x_dev *saa716x)
+void saa716x_i2c_exit(struct saa716x_dev *saa716x)
 {
 	struct saa716x_i2c *i2c		= saa716x->i2c;
 	struct i2c_adapter *adapter	= NULL;
@@ -725,15 +585,11 @@ int saa716x_i2c_exit(struct saa716x_dev *saa716x)
 	for (i = 0; i < SAA716x_I2C_ADAPTERS; i++) {
 
 		adapter = &i2c->i2c_adapter;
-#if 0
-		saa716x_remove_irqvector(saa716x, i2c_vec[i].vector);
-#endif
 		saa716x_i2c_hwdeinit(i2c, SAA716x_I2C_BUS(i));
 		dprintk(SAA716x_DEBUG, 1, "Removing adapter (%d) %s", i, adapter->name);
 
 		i2c_del_adapter(adapter);
 		i2c++;
 	}
-	return 0;
 }
 EXPORT_SYMBOL_GPL(saa716x_i2c_exit);

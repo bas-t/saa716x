@@ -1,15 +1,15 @@
 #include <linux/bitops.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+
+#include "saa716x_greg_reg.h"
 
 #include "saa716x_mod.h"
-#include "saa716x_spi.h"
 #include "saa716x_adap.h"
 #include "saa716x_i2c.h"
-#include "saa716x_gpio.h"
 #include "saa716x_priv.h"
 
 
@@ -33,14 +33,14 @@ void saa716x_dma_start(struct saa716x_dev *saa716x, u8 adapter)
 	params.stream_type	= FGPI_TRANSPORT_STREAM;
 	params.stream_flags	= 0;
 
-	saa716x_fgpi_start(saa716x, saa716x->config->adap_config[adapter].ts_port, &params);
+	saa716x_fgpi_start(saa716x, saa716x->config->adap_config[adapter].ts_fgpi, &params);
 }
 
 void saa716x_dma_stop(struct saa716x_dev *saa716x, u8 adapter)
 {
 	dprintk(SAA716x_DEBUG, 1, "SAA716x Stop DMA engine for Adapter:%d", adapter);
 
-	saa716x_fgpi_stop(saa716x, saa716x->config->adap_config[adapter].ts_port);
+	saa716x_fgpi_stop(saa716x, saa716x->config->adap_config[adapter].ts_fgpi);
 }
 
 static int saa716x_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
@@ -86,6 +86,54 @@ static int saa716x_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return 0;
 }
 
+static void saa716x_demux_worker(unsigned long data)
+{
+	struct saa716x_fgpi_stream_port *fgpi_entry = (struct saa716x_fgpi_stream_port *)data;
+	struct saa716x_dev *saa716x = fgpi_entry->saa716x;
+	struct dvb_demux *demux;
+	u32 fgpi_index;
+	u32 i;
+	u32 write_index;
+
+	fgpi_index = fgpi_entry->dma_channel - 6;
+	demux = NULL;
+	for (i = 0; i < saa716x->config->adapters; i++) {
+		if (saa716x->config->adap_config[i].ts_fgpi == fgpi_index) {
+			demux = &saa716x->saa716x_adap[i].demux;
+			break;
+		}
+	}
+	if (demux == NULL) {
+		printk(KERN_ERR "%s: unexpected channel %u\n",
+		       __func__, fgpi_entry->dma_channel);
+		return;
+	}
+
+	write_index = saa716x_fgpi_get_write_index(saa716x, fgpi_index);
+	if (write_index < 0)
+		return;
+
+	dprintk(SAA716x_DEBUG, 1, "dma buffer = %d", write_index);
+
+	if (write_index == fgpi_entry->read_index) {
+		printk(KERN_DEBUG "%s: called but nothing to do\n", __func__);
+		return;
+	}
+
+	do {
+		u8 *data = (u8 *)fgpi_entry->dma_buf[fgpi_entry->read_index].mem_virt;
+
+		pci_dma_sync_sg_for_cpu(saa716x->pdev,
+			fgpi_entry->dma_buf[fgpi_entry->read_index].sg_list,
+			fgpi_entry->dma_buf[fgpi_entry->read_index].list_len,
+			PCI_DMA_FROMDEVICE);
+
+		dvb_dmx_swfilter(demux, data, 348 * 188);
+
+		fgpi_entry->read_index = (fgpi_entry->read_index + 1) & 7;
+	} while (write_index != fgpi_entry->read_index);
+}
+
 int saa716x_dvb_init(struct saa716x_dev *saa716x)
 {
 	struct saa716x_adapter *saa716x_adap = saa716x->saa716x_adap;
@@ -94,7 +142,10 @@ int saa716x_dvb_init(struct saa716x_dev *saa716x)
 
 	mutex_init(&saa716x->adap_lock);
 
-	saa716x->num_adapters = 0;
+	/* all video input ports use their own clocks */
+	SAA716x_EPWR(GREG, GREG_VI_CTRL, 0x2C688000);
+	SAA716x_EPWR(GREG, GREG_FGPI_CTRL, 0);
+
 	for (i = 0; i < config->adapters; i++) {
 
 		dprintk(SAA716x_DEBUG, 1, "dvb_register_adapter");
@@ -192,13 +243,17 @@ int saa716x_dvb_init(struct saa716x_dev *saa716x)
 			dprintk(SAA716x_ERROR, 1, "Frontend attach = NULL");
 		}
 
-		saa716x_fgpi_init(saa716x, config->adap_config[i].ts_port,
-				  SAA716X_TS_DMA_BUF_SIZE,
-				  config->adap_config[i].worker);
+		/* assign video port to fgpi */
+		SAA716x_EPWR(GREG, GREG_FGPI_CTRL, SAA716x_EPRD(GREG, GREG_FGPI_CTRL) |
+		             (GREG_FGPI_CTRL_SEL(config->adap_config[i].ts_vp) << (config->adap_config[i].ts_fgpi * 3)));
 
-		saa716x->num_adapters++;
+		saa716x_fgpi_init(saa716x, config->adap_config[i].ts_fgpi,
+				  SAA716X_TS_DMA_BUF_SIZE,
+				  saa716x_demux_worker);
+
 		saa716x_adap++;
 	}
+
 
 	return 0;
 
@@ -224,11 +279,11 @@ void saa716x_dvb_exit(struct saa716x_dev *saa716x)
 {
 	struct saa716x_adapter *saa716x_adap = saa716x->saa716x_adap;
 	struct i2c_client *client;
-	int i, count = saa716x->num_adapters;
+	int i;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < saa716x->config->adapters; i++) {
 
-		saa716x_fgpi_exit(saa716x, saa716x->config->adap_config[i].ts_port);
+		saa716x_fgpi_exit(saa716x, saa716x->config->adap_config[i].ts_fgpi);
 
 		/* remove I2C tuner */
 		client = saa716x_adap->i2c_client_tuner;
@@ -259,7 +314,6 @@ void saa716x_dvb_exit(struct saa716x_dev *saa716x)
 		dprintk(SAA716x_DEBUG, 1, "dvb_unregister_adapter");
 		dvb_unregister_adapter(&saa716x_adap->dvb_adapter);
 
-		saa716x->num_adapters--;
 		saa716x_adap++;
 	}
 

@@ -3,7 +3,6 @@
 #include "saa716x_mod.h"
 
 #include "saa716x_cgu_reg.h"
-#include "saa716x_spi.h"
 #include "saa716x_priv.h"
 
 u32 cgu_clk[14] = {
@@ -520,6 +519,7 @@ int saa716x_set_clk(struct saa716x_dev *saa716x,
 
 	return 0;
 }
+EXPORT_SYMBOL(saa716x_set_clk);
 
 int saa716x_cgu_init(struct saa716x_dev *saa716x)
 {

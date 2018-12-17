@@ -25,14 +25,15 @@
 #include "saa716x_msi_reg.h"
 
 #include "saa716x_adap.h"
+#include "saa716x_boot.h"
 #include "saa716x_i2c.h"
-#include "saa716x_msi.h"
+#include "saa716x_pci.h"
 #include "saa716x_budget.h"
 #include "saa716x_gpio.h"
-#include "saa716x_rom.h"
-#include "saa716x_spi.h"
 #include "saa716x_priv.h"
 
+#include "stv6110x.h"
+#include "stv090x.h"
 #include "si2168.h"
 #include "si2157.h"
 
@@ -40,9 +41,9 @@ unsigned int verbose;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
 
-unsigned int int_type;
+unsigned int int_type = 1;
 module_param(int_type, int, 0644);
-MODULE_PARM_DESC(int_type, "force Interrupt Handler type: 0=INT-A, 1=MSI, 2=MSI-X. default INT-A mode");
+MODULE_PARM_DESC(int_type, "select Interrupt Handler type: 0=INT-A, 1=MSI. default: MSI mode");
 
 #define DRIVER_NAME	"SAA716x Budget"
 
@@ -76,19 +77,6 @@ static int saa716x_budget_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		goto fail1;
 	}
 
-	err = saa716x_core_boot(saa716x);
-	if (err) {
-		dprintk(SAA716x_ERROR, 1, "SAA716x Core Boot failed");
-		goto fail2;
-	}
-	dprintk(SAA716x_DEBUG, 1, "SAA716x Core Boot Success");
-
-	err = saa716x_msi_init(saa716x);
-	if (err) {
-		dprintk(SAA716x_ERROR, 1, "SAA716x MSI Init failed");
-		goto fail2;
-	}
-
 	err = saa716x_jetpack_init(saa716x);
 	if (err) {
 		dprintk(SAA716x_ERROR, 1, "SAA716x Jetpack core initialization failed");
@@ -98,42 +86,22 @@ static int saa716x_budget_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	err = saa716x_i2c_init(saa716x);
 	if (err) {
 		dprintk(SAA716x_ERROR, 1, "SAA716x I2C Initialization failed");
-		goto fail2;
+		goto fail3;
 	}
 
 	saa716x_gpio_init(saa716x);
-#if 0
-	err = saa716x_dump_eeprom(saa716x);
-	if (err) {
-		dprintk(SAA716x_ERROR, 1, "SAA716x EEPROM dump failed");
-	}
-
-	err = saa716x_eeprom_data(saa716x);
-	if (err) {
-		dprintk(SAA716x_ERROR, 1, "SAA716x EEPROM read failed");
-	}
-
-	/* set default port mapping */
-	SAA716x_EPWR(GREG, GREG_VI_CTRL, 0x04080FA9);
-	/* enable FGPI3 and FGPI1 for TS input from Port 2 and 6 */
-	SAA716x_EPWR(GREG, GREG_FGPI_CTRL, 0x321);
-#endif
-
-	/* set default port mapping */
-	SAA716x_EPWR(GREG, GREG_VI_CTRL, 0x2C688F0A);
-	/* enable FGPI3, FGPI2, FGPI1 and FGPI0 for TS input from Port 2 and 6 */
-	SAA716x_EPWR(GREG, GREG_FGPI_CTRL, 0x322);
 
 	err = saa716x_dvb_init(saa716x);
 	if (err) {
 		dprintk(SAA716x_ERROR, 1, "SAA716x DVB initialization failed");
-		goto fail3;
+		goto fail4;
 	}
 
 	return 0;
 
-fail3:
+fail4:
 	saa716x_dvb_exit(saa716x);
+fail3:
 	saa716x_i2c_exit(saa716x);
 fail2:
 	saa716x_pci_exit(saa716x);
@@ -181,43 +149,6 @@ static irqreturn_t saa716x_budget_pci_irq(int irq, void *dev_id)
 	if (stat_h)
 		SAA716x_EPWR(MSI, MSI_INT_STATUS_CLR_H, stat_h);
 
-	saa716x_msi_event(saa716x, stat_l, stat_h);
-#if 0
-	dprintk(SAA716x_DEBUG, 1, "VI STAT 0=<%02x> 1=<%02x>, CTL 1=<%02x> 2=<%02x>",
-		SAA716x_EPRD(VI0, INT_STATUS),
-		SAA716x_EPRD(VI1, INT_STATUS),
-		SAA716x_EPRD(VI0, INT_ENABLE),
-		SAA716x_EPRD(VI1, INT_ENABLE));
-
-	dprintk(SAA716x_DEBUG, 1, "FGPI STAT 0=<%02x> 1=<%02x>, CTL 1=<%02x> 2=<%02x>",
-		SAA716x_EPRD(FGPI0, INT_STATUS),
-		SAA716x_EPRD(FGPI1, INT_STATUS),
-		SAA716x_EPRD(FGPI0, INT_ENABLE),
-		SAA716x_EPRD(FGPI0, INT_ENABLE));
-
-	dprintk(SAA716x_DEBUG, 1, "FGPI STAT 2=<%02x> 3=<%02x>, CTL 2=<%02x> 3=<%02x>",
-		SAA716x_EPRD(FGPI2, INT_STATUS),
-		SAA716x_EPRD(FGPI3, INT_STATUS),
-		SAA716x_EPRD(FGPI2, INT_ENABLE),
-		SAA716x_EPRD(FGPI3, INT_ENABLE));
-
-	dprintk(SAA716x_DEBUG, 1, "AI STAT 0=<%02x> 1=<%02x>, CTL 0=<%02x> 1=<%02x>",
-		SAA716x_EPRD(AI0, AI_STATUS),
-		SAA716x_EPRD(AI1, AI_STATUS),
-		SAA716x_EPRD(AI0, AI_CTL),
-		SAA716x_EPRD(AI1, AI_CTL));
-
-	dprintk(SAA716x_DEBUG, 1, "I2C STAT 0=<%02x> 1=<%02x>, CTL 0=<%02x> 1=<%02x>",
-		SAA716x_EPRD(I2C_A, INT_STATUS),
-		SAA716x_EPRD(I2C_B, INT_STATUS),
-		SAA716x_EPRD(I2C_A, INT_ENABLE),
-		SAA716x_EPRD(I2C_B, INT_ENABLE));
-
-	dprintk(SAA716x_DEBUG, 1, "DCS STAT=<%02x>, CTL=<%02x>",
-		SAA716x_EPRD(DCS, DCSC_INT_STATUS),
-		SAA716x_EPRD(DCS, DCSC_INT_ENABLE));
-#endif
-
 	if (stat_l) {
 		if (stat_l & MSI_INT_TAGACK_FGPI_0) {
 			tasklet_schedule(&saa716x->fgpi[0].tasklet);
@@ -236,53 +167,191 @@ static irqreturn_t saa716x_budget_pci_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void demux_worker(unsigned long data)
-{
-	struct saa716x_fgpi_stream_port *fgpi_entry = (struct saa716x_fgpi_stream_port *)data;
-	struct saa716x_dev *saa716x = fgpi_entry->saa716x;
-	struct dvb_demux *demux;
-	u32 fgpi_index;
-	u32 i;
-	u32 write_index;
 
-	fgpi_index = fgpi_entry->dma_channel - 6;
-	demux = NULL;
-	for (i = 0; i < saa716x->config->adapters; i++) {
-		if (saa716x->config->adap_config[i].ts_port == fgpi_index) {
-			demux = &saa716x->saa716x_adap[i].demux;
-			break;
+#define SAA716x_MODEL_SKYSTAR2_EXPRESS_HD	"SkyStar 2 eXpress HD"
+#define SAA716x_DEV_SKYSTAR2_EXPRESS_HD		"DVB-S/S2"
+
+static struct stv090x_config skystar2_stv090x_config = {
+	.device			= STV0903,
+	.demod_mode		= STV090x_SINGLE,
+	.clk_mode		= STV090x_CLK_EXT,
+
+	.xtal			= 8000000,
+	.address		= 0x68,
+
+	.ts1_mode		= STV090x_TSMODE_DVBCI,
+	.ts2_mode		= STV090x_TSMODE_SERIAL_CONTINUOUS,
+
+	.repeater_level		= STV090x_RPTLEVEL_16,
+
+	.tuner_init		= NULL,
+	.tuner_sleep		= NULL,
+	.tuner_set_mode		= NULL,
+	.tuner_set_frequency	= NULL,
+	.tuner_get_frequency	= NULL,
+	.tuner_set_bandwidth	= NULL,
+	.tuner_get_bandwidth	= NULL,
+	.tuner_set_bbgain	= NULL,
+	.tuner_get_bbgain	= NULL,
+	.tuner_set_refclk	= NULL,
+	.tuner_get_status	= NULL,
+};
+
+static int skystar2_set_voltage(struct dvb_frontend *fe,
+				enum fe_sec_voltage voltage)
+{
+	int err;
+	u8 en = 0;
+	u8 sel = 0;
+
+	switch (voltage) {
+	case SEC_VOLTAGE_OFF:
+		en = 0;
+		break;
+
+	case SEC_VOLTAGE_13:
+		en = 1;
+		sel = 0;
+		break;
+
+	case SEC_VOLTAGE_18:
+		en = 1;
+		sel = 1;
+		break;
+
+	default:
+		break;
+	}
+
+	err = skystar2_stv090x_config.set_gpio(fe, 2, 0, en, 0);
+	if (err < 0)
+		goto exit;
+	err = skystar2_stv090x_config.set_gpio(fe, 3, 0, sel, 0);
+	if (err < 0)
+		goto exit;
+
+	return 0;
+exit:
+	return err;
+}
+
+static int skystar2_voltage_boost(struct dvb_frontend *fe, long arg)
+{
+	int err;
+	u8 value;
+
+	if (arg)
+		value = 1;
+	else
+		value = 0;
+
+	err = skystar2_stv090x_config.set_gpio(fe, 4, 0, value, 0);
+	if (err < 0)
+		goto exit;
+
+	return 0;
+exit:
+	return err;
+}
+
+static struct stv6110x_config skystar2_stv6110x_config = {
+	.addr			= 0x60,
+	.refclk			= 16000000,
+	.clk_div		= 2,
+};
+
+static int skystar2_express_hd_frontend_attach(struct saa716x_adapter *adapter,
+					       int count)
+{
+	struct saa716x_dev *saa716x = adapter->saa716x;
+	struct saa716x_i2c *i2c = &saa716x->i2c[SAA716x_I2C_BUS_B];
+	struct stv6110x_devctl *ctl;
+
+	if (count < saa716x->config->adapters) {
+		dprintk(SAA716x_DEBUG, 1, "Adapter (%d) SAA716x frontend Init",
+			count);
+		dprintk(SAA716x_DEBUG, 1, "Adapter (%d) Device ID=%02x", count,
+			saa716x->pdev->subsystem_device);
+
+		saa716x_gpio_set_output(saa716x, 26);
+
+		/* Reset the demodulator */
+		saa716x_gpio_write(saa716x, 26, 1);
+		msleep(10);
+		saa716x_gpio_write(saa716x, 26, 0);
+		msleep(10);
+		saa716x_gpio_write(saa716x, 26, 1);
+		msleep(10);
+
+		adapter->fe = dvb_attach(stv090x_attach,
+					 &skystar2_stv090x_config,
+					 &i2c->i2c_adapter,
+					 STV090x_DEMODULATOR_0);
+
+		if (adapter->fe) {
+			dprintk(SAA716x_NOTICE, 1, "found STV0903 @0x%02x",
+				skystar2_stv090x_config.address);
+		} else {
+			goto exit;
+		}
+
+		adapter->fe->ops.set_voltage = skystar2_set_voltage;
+		adapter->fe->ops.enable_high_lnb_voltage = skystar2_voltage_boost;
+
+		ctl = dvb_attach(stv6110x_attach,
+				 adapter->fe,
+				 &skystar2_stv6110x_config,
+				 &i2c->i2c_adapter);
+
+		if (ctl) {
+			dprintk(SAA716x_NOTICE, 1, "found STV6110(A) @0x%02x",
+				skystar2_stv6110x_config.addr);
+
+			skystar2_stv090x_config.tuner_init	    = ctl->tuner_init;
+			skystar2_stv090x_config.tuner_sleep	    = ctl->tuner_sleep;
+			skystar2_stv090x_config.tuner_set_mode	    = ctl->tuner_set_mode;
+			skystar2_stv090x_config.tuner_set_frequency = ctl->tuner_set_frequency;
+			skystar2_stv090x_config.tuner_get_frequency = ctl->tuner_get_frequency;
+			skystar2_stv090x_config.tuner_set_bandwidth = ctl->tuner_set_bandwidth;
+			skystar2_stv090x_config.tuner_get_bandwidth = ctl->tuner_get_bandwidth;
+			skystar2_stv090x_config.tuner_set_bbgain    = ctl->tuner_set_bbgain;
+			skystar2_stv090x_config.tuner_get_bbgain    = ctl->tuner_get_bbgain;
+			skystar2_stv090x_config.tuner_set_refclk    = ctl->tuner_set_refclk;
+			skystar2_stv090x_config.tuner_get_status    = ctl->tuner_get_status;
+
+			/* call the init function once to initialize
+			   tuner's clock output divider and demod's
+			   master clock */
+			if (adapter->fe->ops.init)
+				adapter->fe->ops.init(adapter->fe);
+		} else {
+			goto exit;
+		}
+
+		dprintk(SAA716x_ERROR, 1, "Done!");
+		return 0;
+	}
+exit:
+	dprintk(SAA716x_ERROR, 1, "Frontend attach failed");
+	return -ENODEV;
+}
+
+static struct saa716x_config skystar2_express_hd_config = {
+	.model_name		= SAA716x_MODEL_SKYSTAR2_EXPRESS_HD,
+	.dev_type		= SAA716x_DEV_SKYSTAR2_EXPRESS_HD,
+	.adapters		= 1,
+	.frontend_attach	= skystar2_express_hd_frontend_attach,
+	.irq_handler		= saa716x_budget_pci_irq,
+	.i2c_rate		= SAA716x_I2C_RATE_100,
+	.adap_config		= {
+		{
+			/* Adapter 0 */
+			.ts_vp   = 6,
+			.ts_fgpi = 1
 		}
 	}
-	if (demux == NULL) {
-		printk(KERN_ERR "%s: unexpected channel %u\n",
-		       __func__, fgpi_entry->dma_channel);
-		return;
-	}
+};
 
-	write_index = saa716x_fgpi_get_write_index(saa716x, fgpi_index);
-	if (write_index < 0)
-		return;
-
-	dprintk(SAA716x_DEBUG, 1, "dma buffer = %d", write_index);
-
-	if (write_index == fgpi_entry->read_index) {
-		printk(KERN_DEBUG "%s: called but nothing to do\n", __func__);
-		return;
-	}
-
-	do {
-		u8 *data = (u8 *)fgpi_entry->dma_buf[fgpi_entry->read_index].mem_virt;
-
-		pci_dma_sync_sg_for_cpu(saa716x->pdev,
-			fgpi_entry->dma_buf[fgpi_entry->read_index].sg_list,
-			fgpi_entry->dma_buf[fgpi_entry->read_index].list_len,
-			PCI_DMA_FROMDEVICE);
-
-		dvb_dmx_swfilter(demux, data, 348 * 188);
-
-		fgpi_entry->read_index = (fgpi_entry->read_index + 1) & 7;
-	} while (write_index != fgpi_entry->read_index);
-}
 
 #define SAA716x_MODEL_TBS6281		"TurboSight TBS 6281"
 #define SAA716x_DEV_TBS6281		"DVB-T/T2/C"
@@ -363,7 +432,6 @@ err:
 static struct saa716x_config saa716x_tbs6281_config = {
 	.model_name		= SAA716x_MODEL_TBS6281,
 	.dev_type		= SAA716x_DEV_TBS6281,
-	.boot_mode		= SAA716x_EXT_BOOT,
 	.adapters		= 2,
 	.frontend_attach	= saa716x_tbs6281_frontend_attach,
 	.irq_handler		= saa716x_budget_pci_irq,
@@ -372,17 +440,16 @@ static struct saa716x_config saa716x_tbs6281_config = {
 	.adap_config		= {
 		{
 			/* adapter 0 */
-			.ts_port = 1, /* using FGPI 1 */
-			.worker = demux_worker
+			.ts_vp   = 6,
+			.ts_fgpi = 1
 		},
 		{
 			/* adapter 1 */
-			.ts_port = 3, /* using FGPI 3 */
-			.worker = demux_worker
+			.ts_vp   = 2,
+			.ts_fgpi = 3
 		},
 	},
 };
-
 
 #define SAA716x_MODEL_TBS6285		"TurboSight TBS 6285"
 #define SAA716x_DEV_TBS6285		"DVB-T/T2/C"
@@ -410,7 +477,7 @@ static int saa716x_tbs6285_frontend_attach(struct saa716x_adapter *adapter, int 
 	info.addr = ((count == 0) || (count == 2)) ? 0x64 : 0x66;
 	info.platform_data = &si2168_config;
 	request_module(info.type);
-	client = i2c_new_device( ((count == 0) || (count == 1)) ? 
+	client = i2c_new_device( ((count == 0) || (count == 1)) ?
 		&dev->i2c[1].i2c_adapter : &dev->i2c[0].i2c_adapter,
 		&info);
 	if (client == NULL || client->dev.driver == NULL) {
@@ -459,7 +526,6 @@ err:
 static struct saa716x_config saa716x_tbs6285_config = {
 	.model_name		= SAA716x_MODEL_TBS6285,
 	.dev_type		= SAA716x_DEV_TBS6285,
-	.boot_mode		= SAA716x_EXT_BOOT,
 	.adapters		= 4,
 	.frontend_attach	= saa716x_tbs6285_frontend_attach,
 	.irq_handler		= saa716x_budget_pci_irq,
@@ -468,30 +534,32 @@ static struct saa716x_config saa716x_tbs6285_config = {
 	.adap_config		= {
 		{
 			/* adapter 0 */
-			.ts_port = 3,
-			.worker = demux_worker
+			.ts_vp   = 2,
+			.ts_fgpi = 3
 		},
 		{
 			/* adapter 1 */
-			.ts_port = 2,
-			.worker = demux_worker
+			.ts_vp   = 3,
+			.ts_fgpi = 2
 		},
 		{
-			/* adapter 1 */
-			.ts_port = 1,
-			.worker = demux_worker
+			/* adapter 2 */
+			.ts_vp   = 6,
+			.ts_fgpi = 1
 		},
 		{
-			/* adapter 1 */
-			.ts_port = 0,
-			.worker = demux_worker
+			/* adapter 3 */
+			.ts_vp   = 5,
+			.ts_fgpi = 0
 		},
 	},
 };
 
+
 static const struct pci_device_id saa716x_budget_pci_table[] = {
-	MAKE_ENTRY(TURBOSIGHT_TBS6281, TBS6281,   SAA7160, &saa716x_tbs6281_config),
-	MAKE_ENTRY(TURBOSIGHT_TBS6285, TBS6285,   SAA7160, &saa716x_tbs6285_config),
+	MAKE_ENTRY(TECHNISAT, SKYSTAR2_EXPRESS_HD, SAA7160, &skystar2_express_hd_config),
+	MAKE_ENTRY(TURBOSIGHT_TBS6281, TBS6281,    SAA7160, &saa716x_tbs6281_config),
+	MAKE_ENTRY(TURBOSIGHT_TBS6285, TBS6285,    SAA7160, &saa716x_tbs6285_config),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, saa716x_budget_pci_table);
@@ -503,7 +571,18 @@ static struct pci_driver saa716x_budget_pci_driver = {
 	.remove			= saa716x_budget_pci_remove,
 };
 
-module_pci_driver(saa716x_budget_pci_driver);
+static int __init saa716x_budget_init(void)
+{
+	return pci_register_driver(&saa716x_budget_pci_driver);
+}
+
+static void __exit saa716x_budget_exit(void)
+{
+	return pci_unregister_driver(&saa716x_budget_pci_driver);
+}
+
+module_init(saa716x_budget_init);
+module_exit(saa716x_budget_exit);
 
 MODULE_DESCRIPTION("SAA716x Budget driver");
 MODULE_AUTHOR("Manu Abraham");
