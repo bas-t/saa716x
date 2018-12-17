@@ -32,8 +32,6 @@
 #include "saa716x_gpio.h"
 #include "saa716x_priv.h"
 
-#include "stv6110x.h"
-#include "stv090x.h"
 #include "si2168.h"
 #include "si2157.h"
 
@@ -166,192 +164,6 @@ static irqreturn_t saa716x_budget_pci_irq(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-
-
-#define SAA716x_MODEL_SKYSTAR2_EXPRESS_HD	"SkyStar 2 eXpress HD"
-#define SAA716x_DEV_SKYSTAR2_EXPRESS_HD		"DVB-S/S2"
-
-static struct stv090x_config skystar2_stv090x_config = {
-	.device			= STV0903,
-	.demod_mode		= STV090x_SINGLE,
-	.clk_mode		= STV090x_CLK_EXT,
-
-	.xtal			= 8000000,
-	.address		= 0x68,
-
-	.ts1_mode		= STV090x_TSMODE_DVBCI,
-	.ts2_mode		= STV090x_TSMODE_SERIAL_CONTINUOUS,
-
-	.repeater_level		= STV090x_RPTLEVEL_16,
-
-	.tuner_init		= NULL,
-	.tuner_sleep		= NULL,
-	.tuner_set_mode		= NULL,
-	.tuner_set_frequency	= NULL,
-	.tuner_get_frequency	= NULL,
-	.tuner_set_bandwidth	= NULL,
-	.tuner_get_bandwidth	= NULL,
-	.tuner_set_bbgain	= NULL,
-	.tuner_get_bbgain	= NULL,
-	.tuner_set_refclk	= NULL,
-	.tuner_get_status	= NULL,
-};
-
-static int skystar2_set_voltage(struct dvb_frontend *fe,
-				enum fe_sec_voltage voltage)
-{
-	int err;
-	u8 en = 0;
-	u8 sel = 0;
-
-	switch (voltage) {
-	case SEC_VOLTAGE_OFF:
-		en = 0;
-		break;
-
-	case SEC_VOLTAGE_13:
-		en = 1;
-		sel = 0;
-		break;
-
-	case SEC_VOLTAGE_18:
-		en = 1;
-		sel = 1;
-		break;
-
-	default:
-		break;
-	}
-
-	err = skystar2_stv090x_config.set_gpio(fe, 2, 0, en, 0);
-	if (err < 0)
-		goto exit;
-	err = skystar2_stv090x_config.set_gpio(fe, 3, 0, sel, 0);
-	if (err < 0)
-		goto exit;
-
-	return 0;
-exit:
-	return err;
-}
-
-static int skystar2_voltage_boost(struct dvb_frontend *fe, long arg)
-{
-	int err;
-	u8 value;
-
-	if (arg)
-		value = 1;
-	else
-		value = 0;
-
-	err = skystar2_stv090x_config.set_gpio(fe, 4, 0, value, 0);
-	if (err < 0)
-		goto exit;
-
-	return 0;
-exit:
-	return err;
-}
-
-static struct stv6110x_config skystar2_stv6110x_config = {
-	.addr			= 0x60,
-	.refclk			= 16000000,
-	.clk_div		= 2,
-};
-
-static int skystar2_express_hd_frontend_attach(struct saa716x_adapter *adapter,
-					       int count)
-{
-	struct saa716x_dev *saa716x = adapter->saa716x;
-	struct saa716x_i2c *i2c = &saa716x->i2c[SAA716x_I2C_BUS_B];
-	struct stv6110x_devctl *ctl;
-
-	if (count < saa716x->config->adapters) {
-		dprintk(SAA716x_DEBUG, 1, "Adapter (%d) SAA716x frontend Init",
-			count);
-		dprintk(SAA716x_DEBUG, 1, "Adapter (%d) Device ID=%02x", count,
-			saa716x->pdev->subsystem_device);
-
-		saa716x_gpio_set_output(saa716x, 26);
-
-		/* Reset the demodulator */
-		saa716x_gpio_write(saa716x, 26, 1);
-		msleep(10);
-		saa716x_gpio_write(saa716x, 26, 0);
-		msleep(10);
-		saa716x_gpio_write(saa716x, 26, 1);
-		msleep(10);
-
-		adapter->fe = dvb_attach(stv090x_attach,
-					 &skystar2_stv090x_config,
-					 &i2c->i2c_adapter,
-					 STV090x_DEMODULATOR_0);
-
-		if (adapter->fe) {
-			dprintk(SAA716x_NOTICE, 1, "found STV0903 @0x%02x",
-				skystar2_stv090x_config.address);
-		} else {
-			goto exit;
-		}
-
-		adapter->fe->ops.set_voltage = skystar2_set_voltage;
-		adapter->fe->ops.enable_high_lnb_voltage = skystar2_voltage_boost;
-
-		ctl = dvb_attach(stv6110x_attach,
-				 adapter->fe,
-				 &skystar2_stv6110x_config,
-				 &i2c->i2c_adapter);
-
-		if (ctl) {
-			dprintk(SAA716x_NOTICE, 1, "found STV6110(A) @0x%02x",
-				skystar2_stv6110x_config.addr);
-
-			skystar2_stv090x_config.tuner_init	    = ctl->tuner_init;
-			skystar2_stv090x_config.tuner_sleep	    = ctl->tuner_sleep;
-			skystar2_stv090x_config.tuner_set_mode	    = ctl->tuner_set_mode;
-			skystar2_stv090x_config.tuner_set_frequency = ctl->tuner_set_frequency;
-			skystar2_stv090x_config.tuner_get_frequency = ctl->tuner_get_frequency;
-			skystar2_stv090x_config.tuner_set_bandwidth = ctl->tuner_set_bandwidth;
-			skystar2_stv090x_config.tuner_get_bandwidth = ctl->tuner_get_bandwidth;
-			skystar2_stv090x_config.tuner_set_bbgain    = ctl->tuner_set_bbgain;
-			skystar2_stv090x_config.tuner_get_bbgain    = ctl->tuner_get_bbgain;
-			skystar2_stv090x_config.tuner_set_refclk    = ctl->tuner_set_refclk;
-			skystar2_stv090x_config.tuner_get_status    = ctl->tuner_get_status;
-
-			/* call the init function once to initialize
-			   tuner's clock output divider and demod's
-			   master clock */
-			if (adapter->fe->ops.init)
-				adapter->fe->ops.init(adapter->fe);
-		} else {
-			goto exit;
-		}
-
-		dprintk(SAA716x_ERROR, 1, "Done!");
-		return 0;
-	}
-exit:
-	dprintk(SAA716x_ERROR, 1, "Frontend attach failed");
-	return -ENODEV;
-}
-
-static struct saa716x_config skystar2_express_hd_config = {
-	.model_name		= SAA716x_MODEL_SKYSTAR2_EXPRESS_HD,
-	.dev_type		= SAA716x_DEV_SKYSTAR2_EXPRESS_HD,
-	.adapters		= 1,
-	.frontend_attach	= skystar2_express_hd_frontend_attach,
-	.irq_handler		= saa716x_budget_pci_irq,
-	.i2c_rate		= SAA716x_I2C_RATE_100,
-	.adap_config		= {
-		{
-			/* Adapter 0 */
-			.ts_vp   = 6,
-			.ts_fgpi = 1
-		}
-	}
-};
-
 
 #define SAA716x_MODEL_TBS6281		"TurboSight TBS 6281"
 #define SAA716x_DEV_TBS6281		"DVB-T/T2/C"
@@ -557,7 +369,6 @@ static struct saa716x_config saa716x_tbs6285_config = {
 
 
 static const struct pci_device_id saa716x_budget_pci_table[] = {
-	MAKE_ENTRY(TECHNISAT, SKYSTAR2_EXPRESS_HD, SAA7160, &skystar2_express_hd_config),
 	MAKE_ENTRY(TURBOSIGHT_TBS6281, TBS6281,    SAA7160, &saa716x_tbs6281_config),
 	MAKE_ENTRY(TURBOSIGHT_TBS6285, TBS6285,    SAA7160, &saa716x_tbs6285_config),
 	{ }
