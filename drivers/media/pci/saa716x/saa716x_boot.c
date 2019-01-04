@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0+
+
 #include <linux/delay.h>
 
 #include "saa716x_mod.h"
@@ -14,9 +16,9 @@
 #include "saa716x_boot.h"
 #include "saa716x_priv.h"
 
-void saa716x_core_reset(struct saa716x_dev *saa716x)
+static void saa716x_core_reset(struct saa716x_dev *saa716x)
 {
-	dprintk(SAA716x_DEBUG, 1, "RESET Modules");
+	pci_dbg(saa716x->pdev, "RESET Modules");
 
 	/* GREG */
 	SAA716x_EPWR(GREG, GREG_SW_RST, GREG_SW_RESET);
@@ -84,7 +86,9 @@ int saa716x_jetpack_init(struct saa716x_dev *saa716x)
 
 	/* General setup for MMU */
 	SAA716x_EPWR(MMU, MMU_MODE, 0x14);
-	dprintk(SAA716x_DEBUG, 1, "SAA%02x Jetpack Successfully initialized", saa716x->pdev->device);
+	pci_dbg(saa716x->pdev,
+		"SAA%02x Jetpack Successfully initialized",
+		saa716x->pdev->device);
 
 	return 0;
 }

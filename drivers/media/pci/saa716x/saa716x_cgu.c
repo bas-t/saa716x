@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0+
+
 #include <linux/delay.h>
 
 #include "saa716x_mod.h"
@@ -68,12 +70,13 @@ int saa716x_getbootscript_setup(struct saa716x_dev *saa716x)
 		M = ((cgu->clk_boot_div[i] >>  3) & 0xff) + N;
 
 		if (M)
-			cgu->clk_freq[i] = (u32 ) N * PLL_FREQ / (u32 ) M;
+			cgu->clk_freq[i] = (u32) N * PLL_FREQ / (u32) M;
 		else
 			cgu->clk_freq[i] = 0;
 
-		dprintk(SAA716x_DEBUG, 1, "Domain %d: %s <0x%02x> Divider: 0x%x --> N=%d, M=%d, freq=%d",
-			i, clk_desc[i], cgu_clk[i], cgu->clk_boot_div[i], N, M, cgu->clk_freq[i]);
+		pci_dbg(saa716x->pdev, "Domain %d: %s <0x%02x> Divider: 0x%x --> N=%d, M=%d, freq=%d",
+			i, clk_desc[i], cgu_clk[i], cgu->clk_boot_div[i],
+			N, M, cgu->clk_freq[i]);
 	}
 	/* store clock settings */
 	cgu->clk_vi_0[0] = cgu->clk_freq[CLK_DOMAIN_VI0];
@@ -190,7 +193,7 @@ int saa716x_set_clk_internal(struct saa716x_dev *saa716x, u32 port)
 		break;
 
 	default:
-		dprintk(SAA716x_ERROR, 1, "Unknown port <%02x>", port);
+		pci_err(saa716x->pdev, "Unknown port <%02x>", port);
 		delay = 0;
 		break;
 	}
@@ -300,7 +303,7 @@ int saa716x_set_clk_external(struct saa716x_dev *saa716x, u32 port)
 		break;
 
 	default:
-		dprintk(SAA716x_ERROR, 1, "Unknown port <%02x>", port);
+		pci_err(saa716x->pdev, "Unknown port <%02x>", port);
 		delay = 0;
 		break;
 
@@ -341,10 +344,10 @@ int saa716x_get_clk(struct saa716x_dev *saa716x,
 		break;
 
 	case CLK_DOMAIN_VI1VBI:
-		*frequency =cgu->clk_freq[CLK_DOMAIN_VI1];
+		*frequency = cgu->clk_freq[CLK_DOMAIN_VI1];
 		break;
 	default:
-		dprintk(SAA716x_ERROR, 1, "Error Clock domain <%02x>", domain);
+		pci_err(saa716x->pdev, "Error Clock domain <%02x>", domain);
 		break;
 	}
 
@@ -492,7 +495,7 @@ int saa716x_set_clk(struct saa716x_dev *saa716x,
 	cgu->clk_curr_div[domain] <<= 3;
 	cgu->clk_curr_div[domain] |= lsb;
 
-	dprintk(SAA716x_DEBUG, 1, "Domain <0x%02x> Frequency <%d> Set Freq <%d> N=%d M=%d Divider <0x%02x>",
+	pci_dbg(saa716x->pdev, "Domain <0x%02x> Frequency <%d> Set Freq <%d> N=%d M=%d Divider <0x%02x>",
 		domain,
 		frequency,
 		cgu->clk_freq[domain],

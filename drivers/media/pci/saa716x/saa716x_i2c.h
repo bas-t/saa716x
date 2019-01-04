@@ -1,5 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+
 #ifndef __SAA716x_I2C_H
 #define __SAA716x_I2C_H
+
+#include <linux/i2c.h>
 
 #define SAA716x_I2C_ADAPTERS	2
 
@@ -34,8 +38,10 @@ struct saa716x_i2c {
 
 	enum saa716x_i2c_rate		i2c_rate;
 	enum saa716x_i2c_mode		i2c_mode;
-	u32				block_size; /* block size for buffered
-						       mode, 1 otherwise */
+
+	/* block size for buffered mode, 1 otherwise */
+	u32				block_size;
+
 	wait_queue_head_t		i2c_wq;
 	int				i2c_op;
 };
