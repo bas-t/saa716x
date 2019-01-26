@@ -157,7 +157,7 @@ show_help(){
   echo "                        "
   echo " --driver=<opt>         [yes] no: don't build the kernel with saa716x."
   echo "                        "
-  echo " --cleen=<opt>          [no] yes: just clean the repo and exit."
+  echo " --clean=<opt>          [no] yes: just clean and update the repo and exit."
   echo "                        "
   exit 0
 }
@@ -216,15 +216,6 @@ done
 export abi_opt
 
 DIR=`pwd`
-
-if [ "x$clean_opt" = "xyes" ]; then
-  rm -rf linux* > /dev/null 2>&1
-  rm -rf media* > /dev/null 2>&1
-  rm -rf descrambler > /dev/null 2>&1
-  git clean -xfd > /dev/null
-  git reset --hard HEAD > /dev/null
-  exit 0
-fi
 
 # Check git status
 if [ "x$update_opt" = "xyes" ]; then
@@ -338,6 +329,10 @@ Aborting...
     env_clean
     exit 1
   fi    
+fi
+
+if [ "x$clean_opt" = "xyes" ]; then
+  exit 0
 fi
 
 # Make sure that we are running as root
