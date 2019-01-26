@@ -205,7 +205,7 @@ for opt do
   ;;
   --driver=*) driver_opt="$optval"; debug_opt="yes"
   ;;
-  --clean=*) clean_opt="optval"
+  --clean=*) clean_opt="$optval"
   ;;
   *)
   die_unknown $opt
