@@ -155,8 +155,6 @@ show_help(){
   echo "                        "
   echo " --gcc=<opt>            [gcc] or set the number."
   echo "                        "
-  echo " --driver=<opt>         [yes] no: don't build the kernel with saa716x."
-  echo "                        "
   echo " --clean=<opt>          [no] yes: just clean and update the repo and exit."
   echo "                        "
   exit 0
@@ -173,7 +171,6 @@ debug_opt="no"
 firmware_opt="yes"
 config_opt="big"
 gcc_opt=""
-driver_opt="yes"
 clean_opt="no"
 
 for opt do
@@ -202,8 +199,6 @@ for opt do
   --config=*) config_opt="$optval"
   ;;
   --gcc=*) gcc_opt="$optval"
-  ;;
-  --driver=*) driver_opt="$optval"; debug_opt="yes"
   ;;
   --clean=*) clean_opt="$optval"
   ;;
@@ -371,15 +366,6 @@ apt-get install lsb-release -y > /dev/null 2>&1
 if [ -f /usr/bin/lsb_release ]; then
   OS=$( lsb_release -si )
   RELEASE=$( lsb_release -sc )
-  if ! [ "$OS" = "Debian" -o "$OS" = "Ubuntu" -o "$OS" = "Devuan" ]; then
-    if ! [ -f "/etc/arch-release" ] > /dev/null  2>&1; then
-      drivers_opt="no"
-    fi
-  fi
-else
-  if ! [ -f "/etc/arch-release" ] > /dev/null  2>&1; then
-    drivers_opt="no"
-  fi
 fi
 
 # Check for a supported kernelversion
@@ -388,21 +374,21 @@ if ! [ "x$vanilla_opt" = "x" ]; then
   MINOR=$(echo "$vanilla_opt" | cut -d'.' -f2 | cut -d'-' -f1)
   export MAJOR
   export MINOR
-  if [ "$MAJOR" -lt 4 ]; then
+  if [ "$MAJOR" -lt 5 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
 
-Minimum supported kernelseries is 4.9.x
+Minimum supported kernelseries is 5.0.x
 
 Aborting...
 "
     env_clean
     exit 0
-  elif [ "$MAJOR" -eq 4 -a "$MINOR" -lt 19 ]; then
+  elif [ "$MAJOR" -lt 5 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
 
-Minimum supported kernelseries is 4.19.x
+Minimum supported kernelseries is 5.0.x
 
 Aborting...
 "
@@ -687,37 +673,35 @@ fi
 
 # Common (stock and vanilla kernels)
 # saa716x patch
-if [ "x$driver_opt" = "xyes" ]; then
-  mkdir drivers/media/pci/saa716x
-  cp -f ../drivers/media/pci/saa716x/* drivers/media/pci/saa716x/
-  if [ "$VERSION" -lt 410 ]; then
-    patch -p0 < ../Kconfig-4.5.patch
-    _patch
-  else
-    patch -p0 < ../Kconfig-4.10.patch
-    _patch
-  fi
-  if [ "x$debug_opt" = "xyes" ]; then
-    echo "
+mkdir drivers/media/pci/saa716x
+cp -f ../drivers/media/pci/saa716x/* drivers/media/pci/saa716x/
+if [ "$VERSION" -lt 410 ]; then
+  patch -p0 < ../Kconfig-4.5.patch
+  _patch
+else
+  patch -p0 < ../Kconfig-4.10.patch
+  _patch
+fi
+if [ "x$debug_opt" = "xyes" ]; then
+  echo "
 saa716x added, Kconfig patched for saa716x.
 "
-    confirmyes
-    if ! [ "$?" -eq 0 ]; then
-      env_clean
-      exit 0
-    fi
+  confirmyes
+  if ! [ "$?" -eq 0 ]; then
+    env_clean
+    exit 0
   fi
-  patch -p0 < ../Makefile-4.2.patch
-  _patch
-  if [ "x$debug_opt" = "xyes" ]; then
-    echo "
+fi
+patch -p0 < ../Makefile-4.2.patch
+_patch
+if [ "x$debug_opt" = "xyes" ]; then
+  echo "
 Makefile is patched for saa716x.
 "
-    confirmyes
-    if ! [ "$?" -eq 0 ]; then
-    env_clean
-    exit
-    fi
+  confirmyes
+  if ! [ "$?" -eq 0 ]; then
+  env_clean
+  exit
   fi
 fi
 
@@ -867,9 +851,7 @@ Kernel configured.
     chmod a+x debian/scripts/misc/*
     sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian.*/config/config.common.ubuntu
     sed -i "/CONFIG_DVB_LNBP22=m/a CONFIG_DVB_LOOPBACK_ADAPTER=m" debian.*/config/config.common.ubuntu
-    if [ "x$drivers_opt" = "xyes" ]; then
-      sed -i "/CONFIG_VIDEO_SAA7146_VV=m/a CONFIG_VIDEO_SAA716X=m" debian.*/config/config.common.ubuntu
-    fi
+    sed -i "/CONFIG_VIDEO_SAA7146_VV=m/a CONFIG_VIDEO_SAA716X=m" debian.*/config/config.common.ubuntu
     fakeroot debian/rules updateconfigs
     UBUNTUKERNEL=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+\.[[:digit:]]\+')
     _ABINAME=$(cat debian/changelog | head -1 | grep -o '[[:digit:]]\+' | head -4 | awk 'NR==4')
