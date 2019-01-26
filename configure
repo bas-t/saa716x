@@ -675,13 +675,8 @@ fi
 # saa716x patch
 mkdir drivers/media/pci/saa716x
 cp -f ../drivers/media/pci/saa716x/* drivers/media/pci/saa716x/
-if [ "$VERSION" -lt 410 ]; then
-  patch -p0 < ../Kconfig-4.5.patch
-  _patch
-else
-  patch -p0 < ../Kconfig-4.10.patch
-  _patch
-fi
+patch -p0 < ../Kconfig-4.10.patch
+_patch
 if [ "x$debug_opt" = "xyes" ]; then
   echo "
 saa716x added, Kconfig patched for saa716x.
@@ -983,22 +978,14 @@ fi
 if [ "x$stock_opt" = "xyes" ]; then
   if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
     if [ "$CONFIG" = "amd64" ]; then
-      if [ "$VERSION" -lt 409 ]; then
-        fakeroot make -f debian/rules.gen binary-arch_amd64_none_real 2>&1 | tee ../buildlog_amd64_none_real
-      else
-        fakeroot make -f debian/rules.gen binary-indep_none_real 2>&1 | tee ../buildlog_binary-indep_none_real
-      fi
+      fakeroot make -f debian/rules.gen binary-indep_none_real 2>&1 | tee ../buildlog_binary-indep_none_real
       if [ "x$debug_opt" = "xyes" ]; then
         fakeroot make -f debian/rules.gen binary-arch_amd64_none_amd64 2>&1 | tee ../buildlog_amd64_none_amd64
       else
         fakeroot make -j2 -f debian/rules.gen binary-arch_amd64_none_amd64 2>&1 | tee ../buildlog_amd64_none_amd64
       fi
     else
-      if [ "$VERSION" -lt 409 ]; then
-        fakeroot make -f debian/rules.gen binary-arch_i386_none_real 2>&1 | tee ../buildlog_i386_none_real
-      else
-        fakeroot make -f debian/rules.gen binary-indep_none_real 2>&1 | tee ../buildlog_binary-indep_none_real
-      fi
+      fakeroot make -f debian/rules.gen binary-indep_none_real 2>&1 | tee ../buildlog_binary-indep_none_real
       if [ "x$debug_opt" = "xyes" ]; then
         fakeroot make -f debian/rules.gen binary-arch_i386_none_686-pae 2>&1 | tee ../buildlog_i386_none_686-pae
       else
