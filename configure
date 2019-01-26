@@ -618,15 +618,9 @@ Going to download the kernel source.
   cd linux-*
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
-  if [ "$FIRST_DIGIT" -eq 4 -a "$SECOND_DIGIT" -lt 9 ]; then
+  if [ "$FIRST_DIGIT" -lt 5 ]; then
     echo "
-Minimum supported kernel version is 4.9.x.
-Aborting...
-"
-    exit 1
-  elif [ "$FIRST_DIGIT" -lt 4 ]; then
-    echo "
-Minimum supported kernel version is 4.9.x.
+Minimum supported kernel version is 5.0.x.
 Aborting...
 "
     exit 1
