@@ -371,8 +371,20 @@ fi
 # Check for a supported kernelversion
 if ! [ "x$vanilla_opt" = "x" ]; then
   MAJOR=$(echo "$vanilla_opt" | cut -d'.' -f1)
+  MINOR=$(echo "$vanilla_opt" | cut -d'.' -f2 | cut -d'-' -f1)
   export MAJOR
+  export MINOR
   if [ "$MAJOR" -lt 5 ]; then
+    echo -en "
+You requested a build for a $vanilla_opt kernel.
+
+Minimum supported kernelseries is 5.0.x
+
+Aborting...
+"
+    env_clean
+    exit 0
+  elif [ "$MAJOR" -lt 5 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
 
@@ -480,6 +492,16 @@ Missing dependency kernel-wedge, marking for installation.
 
 "
     apt-get install kernel-wedge --no-install-recommends -y || die "Error installing dependency kernel-wedge"
+    if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+      apt-get -t $RELEASE-backports install kernel-wedge --no-install-recommends -y > /dev/null 2>&1
+      apt-get -t $RELEASE-backports install linux-base --no-install-recommends -y > /dev/null 2>&1
+      apt-get -t $RELEASE-backports install irqbalance --no-install-recommends -y > /dev/null 2>&1
+      apt-get -t $RELEASE-backports install firmware-linux-free --no-install-recommends -y > /dev/null 2>&1
+    fi
+  else
+    if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+      apt-get -t $RELEASE-backports install kernel-wedge --no-install-recommends -y > /dev/null 2>&1
+    fi
   fi
   if ! dpkg-query -l libdigest-sha-perl | grep "ii" > /dev/null 2>&1; then
     echo "
