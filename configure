@@ -959,6 +959,8 @@ Going to configure your $vanilla_opt vanilla kernel.
     sed -i "s/debian\/certs\/test-signing-certs.pem/\"\"/" .config
   elif cat .config | grep "debian/certs/debian-uefi-ca.pem" > /dev/null 2>&1; then
     sed -i "s/debian\/certs\/debian-uefi-ca.pem/\"\"/" .config
+  elif cat .config | grep "debian/certs/debian-uefi-certs.pem" > /dev/null 2>&1; then
+    sed -i "s/debian\/certs\/debian-uefi-certs.pem/\"\"/" .config 
   fi    
   if [ "x$debug_opt" = "xyes" ]; then
     echo "
