@@ -374,21 +374,21 @@ if ! [ "x$vanilla_opt" = "x" ]; then
   MINOR=$(echo "$vanilla_opt" | cut -d'.' -f2 | cut -d'-' -f1)
   export MAJOR
   export MINOR
-  if [ "$MAJOR" -lt 5 ]; then
+  if [ "$MAJOR" -lt 4 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
 
-Minimum supported kernelseries is 5.0.x
+Minimum supported kernelseries is 4.19.x
 
 Aborting...
 "
     env_clean
     exit 0
-  elif [ "$MAJOR" -lt 5 ]; then
+  elif [ "$MAJOR" -lt 4 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
 
-Minimum supported kernelseries is 5.0.x
+Minimum supported kernelseries is 4.19.x
 
 Aborting...
 "
@@ -599,9 +599,9 @@ Going to download the kernel source.
   cd linux-*
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
-  if [ "$FIRST_DIGIT" -lt 5 ]; then
+  if [ "$FIRST_DIGIT" -lt 4 ]; then
     echo "
-Minimum supported kernel version is 5.0.x.
+Minimum supported kernel version is 4.19.x.
 Aborting...
 "
     exit 1
