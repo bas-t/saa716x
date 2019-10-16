@@ -93,6 +93,30 @@ If you hit 'n', 'make oldconfig' starts.
     esac
 }
 
+smallkernelconfig(){
+echo -en "
+Choise: use supplied config file or
+do 'make localmodconfig'. Do you want to
+use supplied kernel config?
+
+If you hit 'n', 'make localmodconfig' starts.
+
+"
+    # call with a prompt string or use a default
+    read -r -p "${1:-Yes, use it. [Y/n]} " response
+    case $response in
+        [yY][eE][sS]|[yY]) 
+            cp -f ../kernelconfig/amd64/small/$MAJOR.$MINOR/config ./.config
+            ;;
+        [nN][oO]|[nN])
+            make localmodconfig
+            ;;
+        *)
+            cp -f ../kernelconfig/amd64/small/$MAJOR.$MINOR/config ./.config
+            ;;
+    esac
+}
+
 ubuntukernelconfig(){
 echo -en "
 Choise: use supplied config file or
@@ -930,7 +954,11 @@ Going to configure your $vanilla_opt vanilla kernel.
         make oldconfig
       fi
     elif [ "$config_opt" = "small" ]; then
-      make localmodconfig
+      if [ -f ../kernelconfig/amd64/small/$MAJOR.$MINOR/config ]; then
+        smallkernelconfig
+      else
+        make localmodconfig
+      fi
     fi
   elif [ "$OS" = "Ubuntu" ] && [ "$CONFIG" = "amd64" ]; then
     if [ "$config_opt" = "big" ]; then
