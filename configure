@@ -408,7 +408,7 @@ Aborting...
 "
     env_clean
     exit 0
-  elif [ "$MAJOR" -lt 4 ]; then
+  elif [ "$MAJOR" -eq 4 -a "$MINOR" -lt 19 ]; then
     echo -en "
 You requested a build for a $vanilla_opt kernel.
 
@@ -624,6 +624,12 @@ Going to download the kernel source.
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
   if [ "$FIRST_DIGIT" -lt 4 ]; then
+    echo "
+Minimum supported kernel version is 4.19.x.
+Aborting...
+"
+    exit 1
+  elif [ "$FIRST_DIGIT" -eq 4 -a "$SECOND_DIGIT" -lt 19 ]; then
     echo "
 Minimum supported kernel version is 4.19.x.
 Aborting...
