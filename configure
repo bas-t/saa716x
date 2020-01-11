@@ -76,6 +76,7 @@ do 'make oldconfig'. Do you want to
 use supplied kernel config?
 
 If you hit 'n', 'make oldconfig' starts.
+That is probably NOT what you want!
 
 "
     # call with a prompt string or use a default
@@ -124,6 +125,7 @@ do 'make oldconfig'. Do you want to
 use supplied kernel config?
 
 If you hit 'n', 'make oldconfig' starts.
+That is probably NOT what you want!
 
 "
     # call with a prompt string or use a default
