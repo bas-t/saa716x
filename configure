@@ -747,6 +747,11 @@ saa716x is patched for kernel series 5.6.x and up.
   fi
 fi
 
+if [ "$VERSION" -gt 509 ]; then
+  patch -p0 < ../timing.patch
+  _patch
+fi  
+
 # Common (stock and vanilla kernels)
 # kernel-package patch for linux-4.10.x and up
 touch REPORTING-BUGS

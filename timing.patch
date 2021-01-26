@@ -1,0 +1,66 @@
+--- drivers/media/rc/ir-mce_kbd-decoder.c	2021-01-23 16:04:06.000000000 +0100
++++ drivers/media/rc/ir-mce_kbd-decoder.c	2021-01-26 14:28:46.208672734 +0100
+@@ -320,7 +320,7 @@
+ 				data->body);
+ 			spin_lock(&data->keylock);
+ 			if (scancode) {
+-				delay = nsecs_to_jiffies(dev->timeout) +
++				delay = usecs_to_jiffies(dev->timeout) +
+ 					msecs_to_jiffies(100);
+ 				mod_timer(&data->rx_timeout, jiffies + delay);
+ 			} else {
+--- drivers/media/rc/ite-cir.c	2021-01-23 16:04:06.000000000 +0100
++++ drivers/media/rc/ite-cir.c	2021-01-26 14:26:15.846389330 +0100
+@@ -1551,7 +1551,7 @@
+ 	rdev->s_rx_carrier_range = ite_set_rx_carrier_range;
+ 	/* FIFO threshold is 17 bytes, so 17 * 8 samples minimum */
+ 	rdev->min_timeout = 17 * 8 * ITE_BAUDRATE_DIVISOR *
+-			    itdev->params.sample_period;
++			    itdev->params.sample_period / 1000;
+ 	rdev->timeout = IR_DEFAULT_TIMEOUT;
+ 	rdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
+ 	rdev->rx_resolution = ITE_BAUDRATE_DIVISOR *
+--- drivers/media/rc/mtk-cir.c	2021-01-23 16:04:06.000000000 +0100
++++ drivers/media/rc/mtk-cir.c	2021-01-26 14:22:16.258945915 +0100
+@@ -155,8 +155,8 @@
+ 	 * Period for software decoder used in the
+ 	 * unit of raw software sampling
+ 	 */
+-	val = DIV_ROUND_CLOSEST(clk_get_rate(ir->bus),
+-				USEC_PER_SEC * ir->data->div / MTK_IR_SAMPLE);
++	val = DIV_ROUND_CLOSEST(MTK_IR_SAMPLE * clk_get_rate(ir->bus),
++                            USEC_PER_SEC * ir->data->div);
+ 
+ 	dev_dbg(ir->dev, "@pwm clk  = \t%lu\n",
+ 		clk_get_rate(ir->bus) / ir->data->div);
+--- drivers/media/rc/rc-main.c	2021-01-23 16:04:06.000000000 +0100
++++ drivers/media/rc/rc-main.c	2021-01-26 14:30:55.780343239 +0100
+@@ -737,7 +737,7 @@
+ void rc_repeat(struct rc_dev *dev)
+ {
+ 	unsigned long flags;
+-	unsigned int timeout = nsecs_to_jiffies(dev->timeout) +
++	unsigned int timeout = usecs_to_jiffies(dev->timeout) +
+ 		msecs_to_jiffies(repeat_period(dev->last_protocol));
+ 	struct lirc_scancode sc = {
+ 		.scancode = dev->last_scancode, .rc_proto = dev->last_protocol,
+@@ -855,7 +855,7 @@
+ 	ir_do_keydown(dev, protocol, scancode, keycode, toggle);
+ 
+ 	if (dev->keypressed) {
+-		dev->keyup_jiffies = jiffies + nsecs_to_jiffies(dev->timeout) +
++		dev->keyup_jiffies = jiffies + usecs_to_jiffies(dev->timeout) +
+ 			msecs_to_jiffies(repeat_period(protocol));
+ 		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
+ 	}
+--- drivers/media/rc/serial_ir.c	2021-01-23 16:04:06.000000000 +0100
++++ drivers/media/rc/serial_ir.c	2021-01-26 14:32:54.644109941 +0100
+@@ -385,7 +385,7 @@
+ 	} while (!(sinp(UART_IIR) & UART_IIR_NO_INT)); /* still pending ? */
+ 
+ 	mod_timer(&serial_ir.timeout_timer,
+-		  jiffies + nsecs_to_jiffies(serial_ir.rcdev->timeout));
++		  jiffies + usecs_to_jiffies(serial_ir.rcdev->timeout));
+ 
+ 	ir_raw_event_handle(serial_ir.rcdev);
+ 
