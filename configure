@@ -611,7 +611,7 @@ Aborting...
   fi
 fi
 
-USERDIR=`pwd`
+chown tycho:tycho -R `pwd`
 
 #
 # Get the source
@@ -623,7 +623,7 @@ if [ "x$stock_opt" = "xyes" ]; then
 Going to download the kernel source.
 "
   sleep 3
-  apt-get source linux -y || die "Error(s) while fetching Debian Linux source"
+  su tycho -c "apt-get source linux -y" || die "Error(s) while fetching Debian Linux source"
   cd linux-*
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
@@ -690,8 +690,6 @@ Source is downloaded.
     fi
   fi
 fi
-chown tycho:tycho -R $USERDIR
-su tycho
 
 #
 # Patch the source
@@ -872,7 +870,7 @@ Not going to install any more of those, aborting...
     sed -i "s/-$_ABINAME/-$abi_opt/g" debian/rules.gen
     fakeroot debian/rules debian/control-real
     sed -i "s/DEBUG='True'/DEBUG='FALSE'/g" debian/rules.gen
-    sed -i "s/DEBUG_INFO=y/DEBUG_INFO=n/g"
+    sed -i "s/DEBUG_INFO=y/DEBUG_INFO=n/g" debian/rules.gen
     if [ "$CONFIG" = "amd64" ]; then
       fakeroot make -f debian/rules.gen setup_amd64_none_amd64
       sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian/build/build_amd64_none_amd64/.config
@@ -1177,8 +1175,6 @@ Aborting...
     ./gcc-version $OLDGCC
   fi
 fi
-
-exit
 
 #
 # Install the result
