@@ -611,6 +611,8 @@ Aborting...
   fi
 fi
 
+USERDIR=`pwd`
+
 #
 # Get the source
 #
@@ -688,6 +690,8 @@ Source is downloaded.
     fi
   fi
 fi
+chown tycho:tycho -R $USERDIR
+su tycho
 
 #
 # Patch the source
@@ -868,6 +872,7 @@ Not going to install any more of those, aborting...
     sed -i "s/-$_ABINAME/-$abi_opt/g" debian/rules.gen
     fakeroot debian/rules debian/control-real
     sed -i "s/DEBUG='True'/DEBUG='FALSE'/g" debian/rules.gen
+    sed -i "s/DEBUG_INFO=y/DEBUG_INFO=n/g"
     if [ "$CONFIG" = "amd64" ]; then
       fakeroot make -f debian/rules.gen setup_amd64_none_amd64
       sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian/build/build_amd64_none_amd64/.config
@@ -1172,6 +1177,8 @@ Aborting...
     ./gcc-version $OLDGCC
   fi
 fi
+
+exit
 
 #
 # Install the result
