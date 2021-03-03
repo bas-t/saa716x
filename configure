@@ -749,11 +749,6 @@ saa716x is patched for kernel series 5.6.x and up.
   fi
 fi
 
-if [ "$VERSION" -gt 509 ]; then
-  patch -p0 < ../timing.patch
-  _patch
-fi  
-
 # Common (stock and vanilla kernels)
 # kernel-package patch for linux-4.10.x and up
 touch REPORTING-BUGS
@@ -868,9 +863,8 @@ Not going to install any more of those, aborting...
     export _ABINAME
     sed -i "s/abiname: $_ABINAME/abiname: $abi_opt/" debian/config/defines
     sed -i "s/-$_ABINAME/-$abi_opt/g" debian/rules.gen
+    sed -i "s/debug-info: true/debug-info: false/" debian/config/defines
     fakeroot debian/rules debian/control-real
-    sed -i "s/DEBUG='True'/DEBUG='FALSE'/g" debian/rules.gen
-    sed -i "s/DEBUG_INFO=y/DEBUG_INFO=n/g" debian/rules.gen
     if [ "$CONFIG" = "amd64" ]; then
       fakeroot make -f debian/rules.gen setup_amd64_none_amd64
       sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian/build/build_amd64_none_amd64/.config
@@ -1193,6 +1187,8 @@ Going to install your stock kernel and headers.
         exit 0
       fi
     fi
+    rm -f linux-image-amd64-dbg*.deb
+    rm -f linux-image-*-amd64-dbg_*.deb
     dpkg -i *.deb
     apt-get -f install -y
   else
@@ -1206,6 +1202,8 @@ Going to install your stock kernel.
         exit 0
       fi
     fi
+    rm -f linux-image-amd64-dbg*.deb
+    rm -f linux-image-*-amd64-dbg_*.deb
     dpkg -i linux-image-*
   fi
   if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
