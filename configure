@@ -470,6 +470,13 @@ Missing dependency bison, marking for installation.
 "
     apt-get install bison --no-install-recommends -y || die "Error installing dependency bison"
   fi
+  if ! dpkg-query -l bc | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency bc, marking for installation.
+
+"
+    apt-get install bc --no-install-recommends -y || die "Error installing dependency bc"
+  fi
   if ! dpkg-query -l devscripts | grep "ii" > /dev/null 2>&1; then
     echo "
 Missing dependency devscripts, marking for installation.
@@ -584,6 +591,20 @@ Missing dependency patchutils, marking for installation.
 
 "
     apt-get install patchutils --no-install-recommends -y || die "Error installing dependency patchutils"
+  fi
+  if ! dpkg-query -l rsync | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency rsync, marking for installation.
+
+"
+    apt-get install rsync --no-install-recommends -y || die "Error installing dependency rsync"
+  fi
+  if ! dpkg-query -l kmod | grep "ii" > /dev/null 2>&1; then
+    echo "
+Missing dependency kmod, marking for installation.
+
+"
+    apt-get install kmod --no-install-recommends -y || die "Error installing dependency kmod"
   fi
   if ! dpkg-query -l g++ | grep "ii" > /dev/null 2>&1; then
     echo "
@@ -1113,12 +1134,8 @@ if [ "x$vanilla_opt" != "x" ]; then
     ../gcc-version $gcc_opt
     GCCCHANGE="1"
   fi
-  if [ "x$debug_opt" = "xno" ]; then
-    export CONCURRENCY_LEVEL=2
-  fi
   if [ "x$next_opt" = "xno" ]; then
     make -j3 deb-pkg LOCALVERSION=-custom | tee ../buildlog_vanilla_$vanilla_opt
-    exit 0
   fi
   file=($DIR/linux-image-*.deb)
   if ! [ -f "$file" ]; then
@@ -1256,36 +1273,6 @@ Going to install your $vanilla_opt vanilla kernel.
   dpkg -i linux-image-* && sleep 2
 
   if [ "x$headers_opt" = "xyes" ]; then
-    if [ "x$debug_opt" = "xyes" ]; then
-      echo "
-Going to link and install your $vanilla_opt kernel headers.
-"
-      confirmyes
-      if ! [ "$?" -eq 0 ]; then
-        if [ "$GCCCHANGE" -eq 1 ]; then
-          ./gcc-version $OLDGCC
-        fi
-        env_clean
-        exit 0
-      fi
-    fi
-    if echo $vanilla_opt | grep "rc" > /dev/null 2>&1; then
-      BUILDLINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/-rc/.0-rc/')build"
-      SOURCELINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/-rc/.0-rc/')source"
-      HEADERSDIR="/usr/src/$(ls -d1 */ | grep "linux" | sed 's/linux-/linux-headers-/' | sed 's/-r/.0-r/' | sed 's/\///')"
-    elif echo $vanilla_opt | grep -o '[[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+' > /dev/null 2>&1; then
-      BUILDLINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//')build"
-      SOURCELINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//')source"
-      HEADERSDIR="/usr/src/$(ls -d1 */ | grep "linux" | sed 's/linux-/linux-headers-/' | sed 's/\///')"
-    else
-      BUILDLINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/\//.0\//')build"
-      SOURCELINK="/lib/modules/$(ls -d1 */ | grep "linux" | sed 's/linux-//' | sed 's/\//.0\//')source"
-      HEADERSDIR="/usr/src/$(ls -d1 */ | grep "linux" | sed 's/linux-/linux-headers-/' | sed 's/\//.0/')"
-    fi
-    rm -f $BUILDLINK
-    rm -f $SOURCELINK
-    ln -s $HEADERSDIR $SOURCELINK
-    ln -s $HEADERSDIR $BUILDLINK
     dpkg -i linux-headers-*
   fi
   if [ "$?" -eq 0 ]; then
