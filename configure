@@ -505,13 +505,6 @@ Missing dependency initramfs-tools, marking for installation.
 "
     apt-get install initramfs-tools --no-install-recommends -y || die "Error installing dependency initramfs-tools"
   fi
-  if ! dpkg-query -l kernel-package | grep "ii" > /dev/null 2>&1; then
-    echo "
-Missing dependency kernel-package, marking for installation.
-
-"
-    apt-get install kernel-package --no-install-recommends -y || die "Error installing dependency kernel-package"
-  fi
   if ! dpkg-query -l kernel-wedge | grep "ii" > /dev/null 2>&1; then
     echo "
 Missing dependency kernel-wedge, marking for installation.
@@ -748,10 +741,6 @@ saa716x is patched for kernel series 5.6.x and up.
     fi
   fi
 fi
-
-# Common (stock and vanilla kernels)
-# kernel-package patch for linux-4.10.x and up
-touch REPORTING-BUGS
 
 # Common (stock and vanilla kernels)
 # silabs si2168 DVB-C/T patch (for apps like MythTV, that cannot properly handle multistandard DVB cards.)
@@ -1027,6 +1016,7 @@ Kernel configured.
   fi
 fi
 sed -i 's/CONFIG_BUILD_SALT=\".*\"/CONFIG_BUILD_SALT=\"\"/' .config
+sed -i 's/CONFIG_DEBUG_INFO=y/CONFIG_DEBUG_INFO=n/' .config
 
 #
 # Compile the source
@@ -1123,18 +1113,12 @@ if [ "x$vanilla_opt" != "x" ]; then
     ../gcc-version $gcc_opt
     GCCCHANGE="1"
   fi
-  make-kpkg --rootcmd fakeroot clean
   if [ "x$debug_opt" = "xno" ]; then
     export CONCURRENCY_LEVEL=2
   fi
   if [ "x$next_opt" = "xno" ]; then
-    if [ "x$headers_opt" = "xyes" ]; then
-      make-kpkg --rootcmd fakeroot --initrd kernel_image kernel_headers 2>&1 | tee ../buildlog_vanilla_$vanilla_opt
-    else
-      make-kpkg --rootcmd fakeroot --initrd kernel_image 2>&1 | tee ../buildlog_vanilla_$vanilla_opt
-    fi
-  else
-    make-kpkg --rootcmd fakeroot --initrd kernel_image 2>&1 | tee ../buildlog_vanilla_$vanilla_opt
+    make -j3 deb-pkg LOCALVERSION=-custom | tee ../buildlog_vanilla_$vanilla_opt
+    exit 0
   fi
   file=($DIR/linux-image-*.deb)
   if ! [ -f "$file" ]; then
