@@ -879,8 +879,9 @@ Not going to install any more of those, aborting...
       fakeroot make -f debian/rules.gen setup_amd64_none_amd64
       sed -i "s/CONFIG_DVB_MAX_ADAPTERS=8/CONFIG_DVB_MAX_ADAPTERS=$adapters_opt/" debian/build/build_amd64_none_amd64/.config
     if cat debian/build/build_amd64_none_amd64/.config | grep "debian/certs/benh@debian.org.cert.pem" > /dev/null 2>&1; then
-      #sed -i "s/debian\/certs\/benh@debian.org.cert.pem/certs\/signing_key.pem/" debian/build/build_amd64_none_amd64/.config
+      sed -i "s/debian\/certs\/benh@debian.org.cert.pem/certs\/signing_key.pem/" debian/build/build_amd64_none_amd64/.config
       sed -i "s/CONFIG_MODULE_SIG_KEY=\".*\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" debian/build/build_amd64_none_amd64/.config
+      sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" debian/build/build_amd64_none_amd64/.config
       sed -i 's/CONFIG_BUILD_SALT=\".*\"/CONFIG_BUILD_SALT=\"\"/' debian/build/build_amd64_none_amd64/.config
       sed -i 's/CONFIG_DEBUG_INFO=y/CONFIG_DEBUG_INFO=n/' debian/build/build_amd64_none_amd64/.config
     fi
