@@ -1026,7 +1026,8 @@ Going to configure your $vanilla_opt vanilla kernel.
     sed -i "s/debian\/certs\/debian-uefi-ca.pem/\"\"/" .config
   elif cat .config | grep "debian/certs/debian-uefi-certs.pem" > /dev/null 2>&1; then
     sed -i "s/debian\/certs\/debian-uefi-certs.pem/\"\"/" .config 
-  fi    
+  fi
+  sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' .config    
   if [ "x$debug_opt" = "xyes" ]; then
     echo "
 Kernel configured.
