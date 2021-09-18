@@ -691,7 +691,7 @@ Going to install your $vanilla_opt vanilla kernel.
 
   if [ "x$headers_opt" = "xyes" ]; then
     dpkg -i linux-headers-*.deb
-    dpkg -i linux-libc-dev-*.deb
+    dpkg -i linux-libc-dev_*.deb
   fi
   if [ "$?" -eq 0 ]; then
     if [ "x$headers_opt" = "xyes" ]; then
