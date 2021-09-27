@@ -633,6 +633,19 @@ saa716x is patched for kernel series 5.6.x and up.
   fi
 fi
 
+patch -p0 < ../bootlog.patch
+_patch
+if [ "x$debug_opt" = "xyes" ]; then
+  echo "
+bootlog is fixed for ACPI errrors
+"
+  confirmyes
+  if ! [ "$?" -eq 0 ]; then
+  env_clean
+  exit 0
+  fi
+fi
+
 #
 # Configure the source
 #

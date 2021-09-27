@@ -1,0 +1,43 @@
+--- drivers/acpi/acpica/acutils.h	2021-09-26 14:09:02.000000000 +0200
++++ drivers/acpi/acpica/acutils.h	2021-09-27 11:53:58.050022298 +0200
+@@ -81,22 +81,13 @@
+ /*
+  * Common error message prefixes
+  */
+-#ifndef ACPI_MSG_ERROR
+ #define ACPI_MSG_ERROR          "ACPI Error: "
+-#endif
+-#ifndef ACPI_MSG_WARNING
+ #define ACPI_MSG_WARNING        "ACPI Warning: "
+-#endif
+-#ifndef ACPI_MSG_INFO
+ #define ACPI_MSG_INFO           "ACPI: "
+-#endif
+ 
+-#ifndef ACPI_MSG_BIOS_ERROR
+ #define ACPI_MSG_BIOS_ERROR     "Firmware Error (ACPI): "
+-#endif
+-#ifndef ACPI_MSG_BIOS_WARNING
++
+ #define ACPI_MSG_BIOS_WARNING   "Firmware Warning (ACPI): "
+-#endif
+ 
+ /*
+  * Common message suffix
+--- include/acpi/platform/aclinux.h	2021-09-26 14:09:02.000000000 +0200
++++ include/acpi/platform/aclinux.h	2021-09-27 11:56:00.686740051 +0200
+@@ -157,14 +157,6 @@
+ #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_next_filename
+ #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
+ 
+-#define ACPI_MSG_ERROR          KERN_ERR "ACPI Error: "
+-#define ACPI_MSG_EXCEPTION      KERN_ERR "ACPI Exception: "
+-#define ACPI_MSG_WARNING        KERN_WARNING "ACPI Warning: "
+-#define ACPI_MSG_INFO           KERN_INFO "ACPI: "
+-
+-#define ACPI_MSG_BIOS_ERROR     KERN_ERR "ACPI BIOS Error (bug): "
+-#define ACPI_MSG_BIOS_WARNING   KERN_WARNING "ACPI BIOS Warning (bug): "
+-
+ /*
+  * Linux wants to use designated initializers for function pointer structs.
+  */
