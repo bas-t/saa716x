@@ -664,7 +664,7 @@ if ! [ "$ADAPTERS" = "$adapters_opt" ]; then
 fi
 sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' .config
 sed -i "s/debian\/certs\/debian-uefi-certs.pem/\"\"/" .config
-sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/ .config
+sed -i "s/CONFIG_MODULE_SIG_KEY=\"\"/CONFIG_MODULE_SIG_KEY=\"certs\/signing_key.pem\"/" .config
 if [ "x$debug_opt" = "xyes" ]; then
     echo "
 Kernel configured.
