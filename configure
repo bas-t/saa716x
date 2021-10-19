@@ -365,6 +365,23 @@ Aborting...
   fi  
 fi
 
+# Check for proper use of --stock= flag
+if ! [ "$OS" = "Debian" -o "$OS" = "Ubuntu" -o "$OS" = "Devuan" ]; then
+  if [ "x$stock_opt" = "xyes" ]; then
+    echo "
+
+Compiling a distro's stock kernel is supported
+
+in Debian, Devuan and Ubuntu only. You can compile the
+
+v4l tree or a vanilla kernel. Aborting....
+
+"
+    env_clean
+    exit 0
+  fi
+fi
+
 
 # Get build-deps, Debian only.
 if [ "$OS" = "Debian" -o "$OS" = "Ubuntu" -o "$OS" = "Devuan" ]; then
@@ -557,6 +574,27 @@ chown tycho:tycho -R `pwd`
 # Get the source
 #
 
+# Debian
+if [ "x$stock_opt" = "xyes" ]; then
+  echo "
+Going to download the kernel source.
+"
+  sleep 3
+  su tycho -c "apt-get source linux -y" || die "Error(s) while fetching Debian Linux source"
+  cd linux-*
+  make clean && make mrproper
+  FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
+  SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
+  if [ "$FIRST_DIGIT" -lt 5 -a "$SECOND_DIGIT" -lt 10 ]; then
+    echo "
+Minimum supported kernel version is 5.10.x.
+Aborting...
+"
+    exit 1
+  fi
+fi
+
+if [ "x$vanilla_opt" != "x" ]; then 
  echo "
 Going to download the kernel source.
 "
@@ -565,14 +603,15 @@ Going to download the kernel source.
   tar -xJf linux-$vanilla_opt.tar.xz
   cd linux-$vanilla_opt
   make clean && make mrproper
-if [ "x$debug_opt" = "xyes" ]; then
+  if [ "x$debug_opt" = "xyes" ]; then
       echo "
 Source is downloaded.
 "
-  confirmyes
-  if ! [ "$?" -eq 0 ]; then
-    env_clean
-    exit 0
+    confirmyes
+    if ! [ "$?" -eq 0 ]; then
+      env_clean
+      exit 0
+    fi
   fi
 fi
 
@@ -651,7 +690,7 @@ fi
 #
 
 
-# Vanilla
+# Vanilla and Stock
 echo -en "
 Going to configure your $vanilla_opt vanilla kernel.
 
@@ -689,40 +728,38 @@ make -j3 deb-pkg LOCALVERSION=-custom | tee ../buildlog_vanilla_$vanilla_opt
 #
 
 
-if [ "x$vanilla_opt" != "x" ]; then
-  if [ "x$debug_opt" = "xyes" ]; then
-    echo "
-Going to install your $vanilla_opt vanilla kernel.
+if [ "x$debug_opt" = "xyes" ]; then
+  echo "
+Going to install your kernel.
 "
-    confirmyes
-    if ! [ "$?" -eq 0 ]; then
-      env_clean
-      exit 0
-    fi
+  confirmyes
+  if ! [ "$?" -eq 0 ]; then
+    env_clean
+    exit 0
   fi
+fi
   
-  cd $DIR
+cd $DIR
 
-  dpkg -i linux-image-*.deb && sleep 2
+dpkg -i linux-image-*.deb && sleep 2
 
-  if [ "x$headers_opt" = "xyes" ]; then
-    dpkg -i linux-headers-*.deb
-    dpkg -i linux-libc-dev_*.deb
-    # Deal with DKMS the simple way
-    dpkg -i linux-image-*.deb
-  fi
-  if [ "$?" -eq 0 ]; then
-    if [ "x$headers_opt" = "xyes" ]; then
-      echo -en "
-Your $vanilla_opt vanilla kernel and headers are installed.
-
-"
-    else
-      echo -en "
-Your $vanilla_opt vanilla kernel is installed.
+if [ "x$headers_opt" = "xyes" ]; then
+  dpkg -i linux-headers-*.deb
+  dpkg -i linux-libc-dev_*.deb
+  # Deal with DKMS the simple way
+  dpkg -i linux-image-*.deb
+fi
+if [ "$?" -eq 0 ]; then
+if "x$headers_opt" = "xyes" ]; then
+    echo -en "
+Your kernel and headers are installed.
 
 "
-    fi
+  else
+    echo -en "
+Your kernel is installed.
+
+"
   fi
 fi
 
