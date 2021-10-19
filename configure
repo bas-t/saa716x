@@ -154,7 +154,7 @@ show_help(){
   echo "                        want to compile. Like --vanilla=4.1.8"
   echo "                        This disables the --stock= flag."
   echo "                        "
-  echo " --headers=<opt>        [no] yes: install kernel headers package(s)."
+  echo " --headers=<opt>        [yes] no: do not install kernel headers package(s)."
   echo "                        "
   echo " --adapters=<opt>       [16] Set max number of adapters that are allowed,"
   echo "                        twice the number of your physical adapters is needed."
@@ -585,6 +585,7 @@ Going to download the kernel source.
   rm -f *.orig.tar.xz
   rm -f *debian.tar.xz
   rm -f *.dsc
+  make clean && make mrproper
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
   if [ "$FIRST_DIGIT" -lt 5 -a "$SECOND_DIGIT" -lt 10 ]; then
