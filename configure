@@ -69,80 +69,6 @@ confirmyes(){
     esac
 }
 
-kernelconfig(){
-echo -en "
-Choise: use supplied config file or
-do 'make oldconfig'. Do you want to
-use supplied kernel config?
-
-If you hit 'n', 'make oldconfig' starts.
-That is probably NOT what you want!
-
-"
-    # call with a prompt string or use a default
-    read -r -p "${1:-Yes, use it. [Y/n]} " response
-    case $response in
-        [yY][eE][sS]|[yY]) 
-            cp -f ../kernelconfig/amd64/$MAJOR.$MINOR/config ./.config
-            ;;
-        [nN][oO]|[nN])
-            make oldconfig
-            ;;
-        *)
-            cp -f ../kernelconfig/amd64/$MAJOR.$MINOR/config ./.config
-            ;;
-    esac
-}
-
-smallkernelconfig(){
-echo -en "
-Choise: use supplied config file or
-do 'make localmodconfig'. Do you want to
-use supplied kernel config?
-
-If you hit 'n', 'make localmodconfig' starts.
-
-"
-    # call with a prompt string or use a default
-    read -r -p "${1:-Yes, use it. [Y/n]} " response
-    case $response in
-        [yY][eE][sS]|[yY]) 
-            cp -f ../kernelconfig/amd64/small/$MAJOR.$MINOR/config ./.config
-            ;;
-        [nN][oO]|[nN])
-            make localmodconfig
-            ;;
-        *)
-            cp -f ../kernelconfig/amd64/small/$MAJOR.$MINOR/config ./.config
-            ;;
-    esac
-}
-
-ubuntukernelconfig(){
-echo -en "
-Choise: use supplied config file or
-do 'make oldconfig'. Do you want to
-use supplied kernel config?
-
-If you hit 'n', 'make oldconfig' starts.
-That is probably NOT what you want!
-
-"
-    # call with a prompt string or use a default
-    read -r -p "${1:-Yes, use it. [Y/n]} " response
-    case $response in
-        [yY][eE][sS]|[yY]) 
-            cp -f ../kernelconfig/amd64/ubuntu/$MAJOR.$MINOR/config ./.config
-            ;;
-        [nN][oO]|[nN])
-            make oldconfig
-            ;;
-        *)
-            cp -f ../kernelconfig/amd64/ubuntu/$MAJOR.$MINOR/config ./.config
-            ;;
-    esac
-}
-
 show_help(){
   echo " Usage: ./configure --opt1=<opt> --opt2=<opt>"
   echo "                        "
@@ -168,6 +94,8 @@ show_help(){
   echo "                        "
   echo " --clean=<opt>          [no] yes: just clean and update the repo and exit."
   echo "                        "
+  echo " --user=<opt>           [tycho] state your username."
+  echo "                        "
   exit 0
 }
 
@@ -179,6 +107,7 @@ update_opt="yes"
 debug_opt="no"
 firmware_opt="yes"
 clean_opt="no"
+user_opt="tycho"
 
 for opt do
   optval="${opt#*=}"
@@ -198,6 +127,8 @@ for opt do
   --firmware=*) firmware_opt="$optval"
   ;;
   --clean=*) clean_opt="$optval"
+  ;;
+  --user=*) user_opt="$optval"
   ;;
   *)
   die_unknown $opt
@@ -568,7 +499,7 @@ Aborting...
   fi
 fi
 
-chown tycho:tycho -R `pwd`
+chown $user_opt:$user_opt -R `pwd`
 
 #
 # Get the source
@@ -580,7 +511,7 @@ if [ "x$stock_opt" = "xyes" ]; then
 Going to download the kernel source.
 "
   sleep 3
-  su tycho -c "apt-get source linux -y" || die "Error(s) while fetching Debian Linux source"
+  su $user_opt -c "apt-get source linux -y" || die "Error(s) while fetching Debian Linux source"
   cd linux-*
   rm -f *.orig.tar.xz
   rm -f *debian.tar.xz
