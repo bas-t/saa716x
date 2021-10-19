@@ -173,7 +173,7 @@ show_help(){
 
 stock_opt="yes"
 vanilla_opt=""
-headers_opt="no"
+headers_opt="yes"
 adapters_opt="16"
 update_opt="yes"
 debug_opt="no"
@@ -582,7 +582,7 @@ Going to download the kernel source.
   sleep 3
   su tycho -c "apt-get source linux -y" || die "Error(s) while fetching Debian Linux source"
   cd linux-*
-  make clean && make mrproper
+  make clean
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
   if [ "$FIRST_DIGIT" -lt 5 -a "$SECOND_DIGIT" -lt 10 ]; then
