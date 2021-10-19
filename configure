@@ -582,7 +582,9 @@ Going to download the kernel source.
   sleep 3
   su tycho -c "apt-get source linux -y" || die "Error(s) while fetching Debian Linux source"
   cd linux-*
-  make clean
+  rm -f *.orig.tar.xz
+  rm -f *debian.tar.xz
+  rm -f *.dsc
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
   if [ "$FIRST_DIGIT" -lt 5 -a "$SECOND_DIGIT" -lt 10 ]; then
