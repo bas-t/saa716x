@@ -744,13 +744,10 @@ fi
   
 cd $DIR
 
+if [ "x$headers_opt" = "xno" ] ; then
 dpkg -i linux-image-*.deb && sleep 2
-
-if [ "x$headers_opt" = "xyes" ]; then
-  dpkg -i linux-headers-*.deb
-  dpkg -i linux-libc-dev_*.deb
-  # Deal with DKMS the simple way
-  dpkg -i linux-image-*.deb
+elif [ "x$headers_opt" = "xyes" ]; then
+  dpkg -i llinux-image-*.deb inux-headers-*.deb linux-libc-dev_*.deb
 fi
 if [ "$?" -eq 0 ]; then
   if [ "x$headers_opt" = "xyes" ]; then
