@@ -750,7 +750,7 @@ if [ "x$headers_opt" = "xyes" ]; then
   dpkg -i linux-image-*.deb
 fi
 if [ "$?" -eq 0 ]; then
-if "x$headers_opt" = "xyes" ]; then
+  if [ "x$headers_opt" = "xyes" ]; then
     echo -en "
 Your kernel and headers are installed.
 
