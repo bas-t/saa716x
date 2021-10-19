@@ -676,9 +676,9 @@ fi
 cd $DIR
 
 if [ "x$headers_opt" = "xno" ] ; then
-  dpkg -i linux-image-*.deb && sleep 2
+  dpkg -i linux-image-* && sleep 2
 else
-  dpkg -i llinux-image-*.deb inux-headers-*.deb linux-libc-dev_*.deb
+  dpkg -i linux-image* linux-headers* linux-libc-dev*
 fi
 if [ "$?" -eq 0 ]; then
   if [ "x$headers_opt" = "xyes" ]; then
