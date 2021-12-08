@@ -528,7 +528,27 @@ Aborting...
   fi
 fi
 
-if [ "x$vanilla_opt" != "x" ]; then 
+if [ "x$vanilla_opt" != "x" ]; then
+    if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
+      echo "
+Going to download the kernel source.
+"
+     sleep 3
+      wget https://git.kernel.org/torvalds/t/linux-$vanilla_opt.tar.gz || die "Error(s) while fetching Linux source"
+      tar -xzf linux-$vanilla_opt.tar.gz
+      cd linux-$vanilla_opt
+      make clean && make mrproper
+        if [ "x$debug_opt" = "xyes" ]; then
+          echo "
+Source is downloaded.
+"
+        confirmyes
+        if ! [ "$?" -eq 0 ]; then
+          env_clean
+          exit 0
+        fi 
+      fi
+    else
  echo "
 Going to download the kernel source.
 "
