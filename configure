@@ -529,7 +529,7 @@ Aborting...
 fi
 
 if [ "x$vanilla_opt" != "x" ]; then
-    if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
+   if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
       echo "
 Going to download the kernel source.
 "
@@ -538,18 +538,8 @@ Going to download the kernel source.
       tar -xzf linux-$vanilla_opt.tar.gz
       cd linux-$vanilla_opt
       make clean && make mrproper
-        if [ "x$debug_opt" = "xyes" ]; then
-          echo "
-Source is downloaded.
-"
-        confirmyes
-        if ! [ "$?" -eq 0 ]; then
-          env_clean
-          exit 0
-        fi 
-      fi
-    else
- echo "
+   else
+     echo "
 Going to download the kernel source.
 "
   sleep 3
