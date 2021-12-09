@@ -108,6 +108,7 @@ debug_opt="no"
 firmware_opt="yes"
 clean_opt="no"
 user_opt="tycho"
+next_opt="no"
 
 for opt do
   optval="${opt#*=}"
@@ -528,35 +529,37 @@ Aborting...
   fi
 fi
 
+# Vanilla
 if [ "x$vanilla_opt" != "x" ]; then
-   if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
-      echo "
-Going to download the kernel source.
-"
-     sleep 3
-      wget https://git.kernel.org/torvalds/t/linux-$vanilla_opt.tar.gz || die "Error(s) while fetching Linux source"
-      tar -xzf linux-$vanilla_opt.tar.gz
-      cd linux-$vanilla_opt
-      make clean && make mrproper
-   else
-     echo "
+  echo "
 Going to download the kernel source.
 "
   sleep 3
-  wget https://www.kernel.org/pub/linux/kernel/v$MAJOR.x/linux-$vanilla_opt.tar.xz || die "Error(s) while fetching Linux source"
-  tar -xJf linux-$vanilla_opt.tar.xz
-  cd linux-$vanilla_opt
-  make clean && make mrproper
-  if [ "x$debug_opt" = "xyes" ]; then
+  if [ "x$next_opt" = "xno" ]; then
+    if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
+      wget https://git.kernel.org/torvalds/t/linux-$vanilla_opt.tar.gz || die "Error(s) while fetching Linux source"
+    else
+      wget https://www.kernel.org/pub/linux/kernel/v$MAJOR.x/linux-$vanilla_opt.tar.xz || die "Error(s) while fetching Linux source"
+    fi
+    if echo "$vanilla_opt" | grep "rc" > /dev/null 2>&1; then
+      tar -xzf linux-$vanilla_opt.tar.gz
+    else
+      tar -xJf linux-$vanilla_opt.tar.xz
+    fi
+    cd linux-$vanilla_opt
+    make clean && make mrproper
+    if [ "x$debug_opt" = "xyes" ]; then
       echo "
 Source is downloaded.
 "
-    confirmyes
-    if ! [ "$?" -eq 0 ]; then
-      env_clean
-      exit 0
+      confirmyes
+      if ! [ "$?" -eq 0 ]; then
+        env_clean
+        exit 0
+      fi
     fi
   fi
+fi
 
 #
 # Patch the source
