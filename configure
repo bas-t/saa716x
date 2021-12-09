@@ -557,7 +557,6 @@ Source is downloaded.
       exit 0
     fi
   fi
-fi
 
 #
 # Patch the source
