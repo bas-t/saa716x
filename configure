@@ -641,7 +641,7 @@ echo -en "
 Going to configure your kernel.
 
 "
-make oldconfig
+make oldconfig && make prepare
 
 ADAPTERS=$(cat .config | grep "CONFIG_DVB_MAX_ADAPTERS" | grep -o '[[:digit:]]\+')
 if ! [ "$ADAPTERS" = "$adapters_opt" ]; then
