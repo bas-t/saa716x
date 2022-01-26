@@ -135,6 +135,7 @@ for opt do
   --user=*) user_opt="$optval"
   ;;
   --big=*) big_opt="$optval"
+  ;;
   *)
   die_unknown $opt
   ;;
