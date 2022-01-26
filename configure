@@ -96,6 +96,8 @@ show_help(){
   echo "                        "
   echo " --user=<opt>           [tycho] state your username."
   echo "                        "
+  echo " --big=<opt>            [yes] compile a full blown kernel."
+  echo "                        "
   exit 0
 }
 
@@ -109,6 +111,7 @@ firmware_opt="yes"
 clean_opt="no"
 user_opt="tycho"
 next_opt="no"
+big_opt="yes"
 
 for opt do
   optval="${opt#*=}"
@@ -131,6 +134,7 @@ for opt do
   ;;
   --user=*) user_opt="$optval"
   ;;
+  --big=*) big_opt="$optval"
   *)
   die_unknown $opt
   ;;
@@ -641,7 +645,11 @@ echo -en "
 Going to configure your kernel.
 
 "
-make oldconfig && make prepare
+if [ "x$big_opt" = "xyes" ]; then
+  make oldconfig
+else
+  make localmodconfig
+fi
 
 ADAPTERS=$(cat .config | grep "CONFIG_DVB_MAX_ADAPTERS" | grep -o '[[:digit:]]\+')
 if ! [ "$ADAPTERS" = "$adapters_opt" ]; then
