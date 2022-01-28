@@ -96,7 +96,7 @@ show_help(){
   echo "                        "
   echo " --user=<opt>           [tycho] state your username."
   echo "                        "
-  echo " --big=<opt>            [yes] compile a full blown kernel."
+  echo " --big=<opt>            [no] do localmodconfig, yes=compile a full blown kernel."
   echo "                        "
   exit 0
 }
@@ -111,7 +111,7 @@ firmware_opt="yes"
 clean_opt="no"
 user_opt="tycho"
 next_opt="no"
-big_opt="yes"
+big_opt="no"
 
 for opt do
   optval="${opt#*=}"
