@@ -608,21 +608,6 @@ Makefile is patched for saa716x.
   fi
 fi
 
-if [ "$VERSION" -gt 505 ]; then
-  patch -p0 < ../5.6-linux.patch
-  _patch
-  if [ "x$debug_opt" = "xyes" ]; then
-    echo "
-saa716x is patched for kernel series 5.6.x and up.
-"
-    confirmyes
-    if ! [ "$?" -eq 0 ]; then
-      env_clean
-      exit 0
-    fi
-  fi
-fi
-
 patch -p0 < ../bootlog.patch
 _patch
 if [ "x$debug_opt" = "xyes" ]; then
