@@ -299,6 +299,16 @@ Aborting...
 "
     env_clean
     exit 0
+  elif [ "$MAJOR" -eq 5 -a "$MINOR" -lt 10 ]; then
+     echo -en "
+You requested a build for a $vanilla_opt kernel.
+
+Minimum supported kernelseries is 5.10.x
+
+Aborting...
+"
+    env_clean
+    exit 0
   fi  
 fi
 
@@ -525,7 +535,13 @@ Going to download the kernel source.
   make clean && make mrproper
   FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
-  if [ "$FIRST_DIGIT" -lt 5 -a "$SECOND_DIGIT" -lt 10 ]; then
+  if [ "$FIRST_DIGIT" -lt 5 ]; then
+    echo "
+Minimum supported kernel version is 5.10.x.
+Aborting...
+"
+    exit 1
+  elif [ "$FIRST_DIGIT" -eq 5 -a "$SECOND_DIGIT" -lt 10 ]; then
     echo "
 Minimum supported kernel version is 5.10.x.
 Aborting...
