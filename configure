@@ -546,6 +546,7 @@ Aborting...
 fi
 
 # Vanilla
+MAJOR=$(echo "$vanilla_opt" | cut -d'.' -f1)
 if [ "x$vanilla_opt" != "x" ]; then
   echo "
 Going to download the kernel source.
