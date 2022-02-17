@@ -285,41 +285,36 @@ fi
 
 # Check for a supported kernelversion
 if ! [ "x$vanilla_opt" = "x" ]; then
-  MAJOR=$(echo "$vanilla_opt" | cut -d'.' -f1)
-  MINOR=$(echo "$vanilla_opt" | cut -d'.' -f2 | cut -d'-' -f1)
-  export MAJOR
-  export MINOR
-  if [ "$MAJOR" -lt 5 ]; then
-    echo -en "
-You requested a build for a $vanilla_opt kernel.
-
-Minimum supported kernelseries is 5.10.x
-
-Aborting...
-"
-    env_clean
-    exit 0
-  elif [ "$MAJOR" -eq 5 -a "$MINOR" -lt 10 ]; then
-     echo -en "
-You requested a build for a $vanilla_opt kernel.
-
-Minimum supported kernelseries is 5.10.x
-
-Aborting...
-"
-    env_clean
-    exit 0
-  fi  
+  FIRST_DIGIT=$(echo "$vanilla_opt" | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
+  SECOND_DIGIT=$(echo "$vanilla_opt" | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
+  EXTRA_DIGIT="0"
+  VERSION="$FIRST_DIGIT$SECOND_DIGIT"
+  chars=`echo -n $SECOND_DIGIT  | wc -c`
+  if ! [ "$chars" -eq 2 ]; then
+    VERSION="$FIRST_DIGIT$EXTRA_DIGIT$SECOND_DIGIT"
+  fi
 fi
 
+if [ "$VERSION" -lt 510 ]; then
+echo -en "
+You requested a build for a $vanilla_opt kernel.
+
+Minimum supported kernelseries is 5.10.x
+
+Aborting...
+"
+  env_clean
+  exit 0
+fi
+i
 # Check for proper use of --stock= flag
-if ! [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
+if ! [ "$OS" = "Debian" ]; then
   if [ "x$stock_opt" = "xyes" ]; then
     echo "
 
 Compiling a distro's stock kernel is supported
 
-in Debian and Devuan only. You can compile the
+in Debian only. You can compile the
 
 v4l tree or a vanilla kernel. Aborting....
 
@@ -328,7 +323,6 @@ v4l tree or a vanilla kernel. Aborting....
     exit 0
   fi
 fi
-
 
 # Get build-deps, Debian only.
 if [ "$OS" = "Debian" -o "$OS" = "Devuan" ]; then
@@ -533,15 +527,16 @@ Going to download the kernel source.
   rm -f *debian.tar.xz
   rm -f *.dsc
   make clean && make mrproper
-  FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
+    FIRST_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n1 | awk 'NR==1')
   SECOND_DIGIT=$(echo `pwd` | awk -F/ '{print $NF}' | grep -o '[[:digit:]]\+' | head -n2 | awk 'NR==2')
-  if [ "$FIRST_DIGIT" -lt 5 ]; then
-    echo "
-Minimum supported kernel version is 5.10.x.
-Aborting...
-"
-    exit 1
-  elif [ "$FIRST_DIGIT" -eq 5 -a "$SECOND_DIGIT" -lt 10 ]; then
+  EXTRA_DIGIT="0"
+  VERSION="$FIRST_DIGIT$SECOND_DIGIT"
+  chars=`echo -n $SECOND_DIGIT  | wc -c`
+  if ! [ "$chars" -eq 2 ]; then
+    VERSION="$FIRST_DIGIT$EXTRA_DIGIT$SECOND_DIGIT"
+  fi
+  
+  if [ "$VERSION" -lt 510 ]; then
     echo "
 Minimum supported kernel version is 5.10.x.
 Aborting...
