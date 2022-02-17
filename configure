@@ -306,7 +306,7 @@ Aborting...
   env_clean
   exit 0
 fi
-i
+
 # Check for proper use of --stock= flag
 if ! [ "$OS" = "Debian" ]; then
   if [ "x$stock_opt" = "xyes" ]; then
